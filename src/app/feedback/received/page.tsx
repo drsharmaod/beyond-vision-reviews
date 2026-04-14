@@ -1,140 +1,87 @@
-// src/app/feedback/received/page.tsx
 "use client";
 import { useState, useEffect } from "react";
+import { CheckCircle, MessageSquare, Heart } from "lucide-react";
 
 export default function FeedbackReceivedPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  const items = [
+    { icon: CheckCircle,    text: "Your feedback has been shared with our clinic team" },
+    { icon: MessageSquare,  text: "We will be in touch with you shortly" },
+    { icon: Heart,          text: "We are committed to improving your experience" },
+  ];
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#080808",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: "24px 16px",
-      fontFamily: "'Inter', system-ui, sans-serif",
-      position: "relative", overflow: "hidden",
-    }}>
-      {/* Background */}
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-        <div style={{
-          position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)",
-          width: 700, height: 400,
-          background: "radial-gradient(ellipse, rgba(59,130,246,0.05) 0%, transparent 65%)",
-          borderRadius: "50%",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0,
-          backgroundImage: "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }} />
+    <div className="min-h-screen bg-brand-black flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gold-500/4 rounded-full blur-3xl" />
       </div>
 
-      <div style={{
-        position: "relative", width: "100%", maxWidth: 480, textAlign: "center",
-        opacity: mounted ? 1 : 0,
-        transform: mounted ? "translateY(0)" : "translateY(20px)",
-        transition: "opacity 0.6s ease, transform 0.6s ease",
-      }}>
-
+      <div
+        className="relative w-full max-w-md text-center"
+        style={{ opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(16px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}
+      >
         {/* Logo */}
-        <div style={{ marginBottom: 36 }}>
-          <div style={{ width: 48, height: 1, background: "linear-gradient(90deg, transparent, #C9A84C, transparent)", margin: "0 auto 12px" }} />
-          <div style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 22, fontWeight: 700, color: "#ffffff",
-            letterSpacing: "0.25em", textTransform: "uppercase",
-          }}>BEYOND VISION</div>
-          <div style={{ fontSize: 10, color: "#C9A84C", letterSpacing: "0.5em", textTransform: "uppercase", marginTop: 4 }}>OPTOMETRY</div>
-          <div style={{ width: 48, height: 1, background: "linear-gradient(90deg, transparent, #C9A84C, transparent)", margin: "12px auto 0" }} />
+        <div className="text-center mb-10">
+          <div className="inline-flex flex-col items-center">
+            <div className="w-10 h-px mb-3 bg-gold-500/50" />
+            <span className="font-display text-2xl font-bold text-white tracking-widest uppercase">BEYOND VISION</span>
+            <span className="text-gold-500 text-[10px] tracking-[0.5em] uppercase mt-1">OPTOMETRY</span>
+            <div className="w-10 h-px mt-3 bg-gold-500/50" />
+          </div>
         </div>
 
         {/* Card */}
-        <div style={{
-          background: "linear-gradient(145deg, #141414, #111111)",
-          border: "1px solid #242424",
-          borderRadius: 20,
-          padding: "48px 40px",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03)",
-        }}>
+        <div className="bg-brand-card border border-brand-border rounded-2xl p-10 shadow-2xl shadow-black/60">
 
           {/* Icon */}
-          <div style={{
-            width: 64, height: 64, borderRadius: "50%",
-            background: "rgba(201,168,76,0.08)",
-            border: "1px solid rgba(201,168,76,0.2)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 28px",
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? "scale(1)" : "scale(0.8)",
-            transition: "opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s",
-          }}>
+          <div
+            className="w-16 h-16 rounded-full bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mx-auto mb-7"
+            style={{
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? "scale(1)" : "scale(0.8)",
+              transition: "opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s",
+            }}
+          >
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
 
-          <h1 style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 30, fontWeight: 700, color: "#ffffff",
-            margin: "0 0 12px", lineHeight: 1.2,
-          }}>
-            Feedback received
-          </h1>
-
-          <p style={{
-            color: "#888888", fontSize: 15, lineHeight: 1.7,
-            margin: "0 0 32px",
-          }}>
-            Thank you for taking the time to share your experience with us. Your feedback has been sent directly to our clinic team.
+          <h1 className="font-display text-3xl font-bold text-white mb-3">Feedback received</h1>
+          <p className="text-brand-text text-sm leading-relaxed mb-8">
+            Thank you for taking the time to share your experience. Your feedback has been sent directly to our clinic team.
           </p>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #242424, transparent)", marginBottom: 28 }} />
+          <div className="h-px bg-brand-border mb-7" />
 
-          {/* Commitment message */}
-          <div style={{
-            display: "flex", flexDirection: "column", gap: 16,
-            textAlign: "left",
-          }}>
-            {[
-              { icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", text: "Your feedback has been shared with our clinic team" },
-              { icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z", text: "We will be in touch with you shortly" },
-              { icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z", text: "We are committed to improving your experience" },
-            ].map((item, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "flex-start", gap: 12,
-                opacity: mounted ? 1 : 0,
-                transform: mounted ? "translateX(0)" : "translateX(-8px)",
-                transition: `opacity 0.4s ease ${0.2 + i * 0.1}s, transform 0.4s ease ${0.2 + i * 0.1}s`,
-              }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                  background: "rgba(201,168,76,0.08)",
-                  border: "1px solid rgba(201,168,76,0.15)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={item.icon}/>
-                  </svg>
+          {/* Commitment list */}
+          <div className="flex flex-col gap-4 text-left">
+            {items.map(({ icon: Icon, text }, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3"
+                style={{
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? "translateX(0)" : "translateX(-8px)",
+                  transition: `opacity 0.4s ease ${0.2 + i * 0.1}s, transform 0.4s ease ${0.2 + i * 0.1}s`,
+                }}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon size={13} className="text-gold-500" />
                 </div>
-                <p style={{ color: "#888888", fontSize: 13, lineHeight: 1.5, margin: "6px 0 0", flex: 1 }}>
-                  {item.text}
-                </p>
+                <p className="text-brand-text text-sm leading-relaxed">{text}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p style={{ color: "#333333", fontSize: 11, marginTop: 24 }}>
+        <p className="text-center text-brand-text/20 text-xs mt-6">
           © {new Date().getFullYear()} Beyond Vision Optometry · Edmonton, Alberta
         </p>
       </div>
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
-      `}</style>
     </div>
   );
 }
