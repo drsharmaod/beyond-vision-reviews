@@ -7,6 +7,33 @@ module.exports = {
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
   ],
+  safelist: [
+    // Brand colors — prevent purging in production
+    { pattern: /^bg-brand-/ },
+    { pattern: /^text-brand-/ },
+    { pattern: /^border-brand-/ },
+    { pattern: /^bg-gold-/ },
+    { pattern: /^text-gold-/ },
+    { pattern: /^border-gold-/ },
+    { pattern: /^ring-gold-/ },
+    { pattern: /^shadow-gold-/ },
+    { pattern: /^fill-gold-/ },
+    { pattern: /^stroke-gold-/ },
+    // Opacity variants
+    { pattern: /^bg-gold-500\//, variants: ["hover", "focus"] },
+    { pattern: /^border-gold-500\//, variants: ["hover", "focus"] },
+    { pattern: /^bg-red-500\//, variants: ["hover"] },
+    { pattern: /^border-red-500\//, variants: ["hover"] },
+    { pattern: /^bg-green-500\//, variants: ["hover"] },
+    { pattern: /^text-red-400/ },
+    { pattern: /^text-green-400/ },
+    { pattern: /^text-gold-400/ },
+    { pattern: /^text-gold-500/ },
+    // Layout utilities used in dashboard
+    "h-screen", "h-14", "w-64", "shrink-0",
+    "flex-1", "overflow-hidden", "overflow-y-auto",
+    "gold-gradient",
+  ],
   theme: {
     container: {
       center: true,
