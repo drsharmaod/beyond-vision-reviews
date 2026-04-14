@@ -1,15 +1,16 @@
-// src/app/(dashboard)/imports/page.tsx
 "use client";
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Upload, FileText, CheckCircle2, XCircle, AlertCircle,
-  Download, RefreshCw, ChevronDown, ChevronUp,
-} from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Upload, FileText, CheckCircle2, XCircle, RefreshCw, ChevronDown, ChevronUp, Download } from "lucide-react";
 
-// ── Upload zone ───────────────────────────────────────────────────────────────
+const ff = "var(--font-inter, system-ui, sans-serif)";
+
+function formatDate(d: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function UploadZone({ onResult }: { onResult: (r: any) => void }) {
   const [uploading, setUploading] = useState(false);
   const [error,     setError]     = useState("");
@@ -17,131 +18,129 @@ function UploadZone({ onResult }: { onResult: (r: any) => void }) {
   const onDrop = useCallback(async (files: File[]) => {
     const file = files[0];
     if (!file) return;
-    setUploading(true);
-    setError("");
+    setUploading(true); setError("");
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/imports", { method: "POST", body: fd });
+      const res  = await fetch("/api/imports", { method: "POST", body: fd });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       onResult(json.data);
     } catch (e: any) {
       setError(e.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
   }, [onResult]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { "text/csv": [".csv"] },
-    maxFiles: 1,
-    disabled: uploading,
+    onDrop, accept: { "text/csv": [".csv"] }, maxFiles: 1, disabled: uploading,
   });
 
   return (
     <div>
-      <div
-        {...getRootProps()}
-        className={cn(
-          "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all",
-          isDragActive
-            ? "border-gold-500 bg-gold-500/5"
-            : "border-brand-border hover:border-gold-500/50 hover:bg-brand-card",
-          uploading && "pointer-events-none opacity-60"
-        )}
-      >
+      <div {...getRootProps()} style={{
+        border: `2px dashed ${isDragActive ? "#C9A84C" : "#2a2a2a"}`,
+        borderRadius: 14, padding: "48px 24px", textAlign: "center",
+        cursor: uploading ? "not-allowed" : "pointer",
+        backgroundColor: isDragActive ? "rgba(201,168,76,0.04)" : "transparent",
+        opacity: uploading ? 0.6 : 1,
+        transition: "all 0.2s ease",
+      }}>
         <input {...getInputProps()} />
-        <div className={cn(
-          "mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center transition-colors",
-          isDragActive ? "bg-gold-500/20 border border-gold-500/30" : "bg-brand-dark border border-brand-border"
-        )}>
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%", margin: "0 auto 16px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backgroundColor: isDragActive ? "rgba(201,168,76,0.15)" : "#141414",
+          border: `1px solid ${isDragActive ? "rgba(201,168,76,0.3)" : "#2a2a2a"}`,
+          transition: "all 0.2s",
+        }}>
           {uploading
-            ? <RefreshCw size={22} className="text-gold-400 animate-spin" />
-            : <Upload size={22} className={isDragActive ? "text-gold-400" : "text-brand-text"} />
+            ? <RefreshCw size={22} color="#C9A84C" style={{ animation: "spin 1s linear infinite" }} />
+            : <Upload size={22} color={isDragActive ? "#C9A84C" : "#666"} />
           }
         </div>
-        <p className="text-white font-medium mb-1">
+        <p style={{ color: "#ffffff", fontWeight: 500, fontSize: 15, margin: "0 0 6px" }}>
           {uploading ? "Processing CSV…" : isDragActive ? "Drop it here" : "Drop your CSV file here"}
         </p>
-        <p className="text-brand-text text-sm mb-4">
-          or <span className="text-gold-400 underline">browse to upload</span>
+        <p style={{ color: "#888", fontSize: 13, margin: "0 0 16px" }}>
+          or <span style={{ color: "#C9A84C", textDecoration: "underline" }}>browse to upload</span>
         </p>
-        <p className="text-brand-text/50 text-xs">
+        <p style={{ color: "#444", fontSize: 11, margin: 0 }}>
           CSV only · Max 10MB · Required columns: first_name, last_name, email, location, exam_date
         </p>
       </div>
       {error && (
-        <div className="mt-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
-          <XCircle size={14} />
-          {error}
+        <div style={{
+          marginTop: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 8,
+          backgroundColor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
+          borderRadius: 8, color: "#f87171", fontSize: 13,
+        }}>
+          <XCircle size={13} /> {error}
         </div>
       )}
     </div>
   );
 }
 
-// ── Import result card ────────────────────────────────────────────────────────
 function ImportResultCard({ result }: { result: any }) {
   const [showErrors, setShowErrors] = useState(false);
   const hasErrors = result.errors?.length > 0;
 
   return (
-    <div className="card-dark p-5 animate-fadeIn">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-          <CheckCircle2 size={16} className="text-green-400" />
+    <div style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div style={{ padding: 8, backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8 }}>
+          <CheckCircle2 size={16} color="#4ade80" />
         </div>
         <div>
-          <p className="text-white font-medium">Import complete</p>
-          <p className="text-brand-text text-xs">{result.fileName}</p>
+          <p style={{ color: "#ffffff", fontWeight: 500, fontSize: 14, margin: 0 }}>Import complete</p>
+          <p style={{ color: "#888", fontSize: 11, margin: 0 }}>{result.fileName}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
         {[
-          { label: "Total Rows",   value: result.totalRows,    color: "text-white" },
-          { label: "Imported",     value: result.validRows,    color: "text-green-400" },
-          { label: "Skipped",      value: result.duplicateRows, color: "text-yellow-400" },
-          { label: "Invalid",      value: result.invalidRows,  color: result.invalidRows > 0 ? "text-red-400" : "text-brand-text/40" },
+          { label: "Total Rows", value: result.totalRows,    color: "#ffffff" },
+          { label: "Imported",   value: result.validRows,    color: "#4ade80" },
+          { label: "Skipped",    value: result.duplicateRows, color: "#facc15" },
+          { label: "Invalid",    value: result.invalidRows,  color: result.invalidRows > 0 ? "#f87171" : "#444" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-brand-dark rounded-lg p-3 border border-brand-border">
-            <div className={cn("text-xl font-display font-semibold", color)}>{value}</div>
-            <div className="text-xs text-brand-text/60 mt-0.5">{label}</div>
+          <div key={label} style={{ backgroundColor: "#141414", borderRadius: 8, padding: 14, border: "1px solid #2a2a2a" }}>
+            <div style={{ fontSize: 22, fontWeight: 600, color, marginBottom: 2 }}>{value}</div>
+            <div style={{ fontSize: 11, color: "#666" }}>{label}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-gold-500/5 border border-gold-500/15 rounded-lg px-4 py-2.5 text-sm text-gold-400">
+      <div style={{ backgroundColor: "rgba(201,168,76,0.05)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#C9A84C" }}>
         ✓ {result.queued} feedback email{result.queued !== 1 ? "s" : ""} queued for delivery
       </div>
 
       {hasErrors && (
-        <div className="mt-3">
-          <button
-            onClick={() => setShowErrors(!showErrors)}
-            className="flex items-center gap-2 text-xs text-brand-text/60 hover:text-white transition"
-          >
-            {showErrors ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        <div style={{ marginTop: 12 }}>
+          <button onClick={() => setShowErrors(!showErrors)} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 11, color: "#666", background: "none", border: "none", cursor: "pointer",
+            padding: 0, fontFamily: ff,
+          }}>
+            {showErrors ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
             {result.errors.length} row error{result.errors.length !== 1 ? "s" : ""}
           </button>
           {showErrors && (
-            <div className="mt-2 bg-red-500/5 border border-red-500/15 rounded-lg overflow-hidden">
-              <table className="w-full text-xs">
+            <div style={{ marginTop: 8, backgroundColor: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 8, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead>
-                  <tr className="border-b border-red-500/10">
-                    <th className="text-left px-3 py-2 text-red-400/70 font-normal">Row</th>
-                    <th className="text-left px-3 py-2 text-red-400/70 font-normal">Field</th>
-                    <th className="text-left px-3 py-2 text-red-400/70 font-normal">Error</th>
+                  <tr style={{ borderBottom: "1px solid rgba(239,68,68,0.1)" }}>
+                    {["Row", "Field", "Error"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "rgba(248,113,113,0.7)", fontWeight: 400 }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {result.errors.slice(0, 20).map((e: any, i: number) => (
-                    <tr key={i} className="border-b border-red-500/5">
-                      <td className="px-3 py-1.5 text-brand-text">{e.row}</td>
-                      <td className="px-3 py-1.5 text-brand-text font-mono">{e.field}</td>
-                      <td className="px-3 py-1.5 text-red-400/80">{e.message}</td>
+                    <tr key={i} style={{ borderBottom: "1px solid rgba(239,68,68,0.05)" }}>
+                      <td style={{ padding: "6px 12px", color: "#b0b0b0" }}>{e.row}</td>
+                      <td style={{ padding: "6px 12px", color: "#b0b0b0", fontFamily: "monospace" }}>{e.field}</td>
+                      <td style={{ padding: "6px 12px", color: "rgba(248,113,113,0.8)" }}>{e.message}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -154,75 +153,72 @@ function ImportResultCard({ result }: { result: any }) {
   );
 }
 
-// ── Import history table ──────────────────────────────────────────────────────
 function ImportHistory() {
   const { data, isLoading } = useQuery({
     queryKey: ["imports"],
-    queryFn:  async () => {
-      const r = await fetch("/api/imports");
-      return (await r.json()).data;
-    },
+    queryFn: async () => (await (await fetch("/api/imports")).json()).data,
   });
-
-  if (isLoading) return (
-    <div className="card-dark p-8 text-center text-brand-text/40 text-sm">Loading history…</div>
-  );
 
   const imports = data?.imports ?? [];
 
   return (
-    <div className="card-dark overflow-hidden">
-      <div className="px-5 py-4 border-b border-brand-border">
-        <h3 className="text-sm font-medium text-white">Upload History</h3>
+    <div style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2a2a" }}>
+        <h3 style={{ fontSize: 13, fontWeight: 500, color: "#ffffff", margin: 0 }}>Upload History</h3>
       </div>
-      {imports.length === 0 ? (
-        <div className="p-8 text-center text-brand-text/40 text-sm">No imports yet</div>
+      {isLoading ? (
+        <div style={{ padding: 32, textAlign: "center", color: "#444", fontSize: 13 }}>Loading history…</div>
+      ) : imports.length === 0 ? (
+        <div style={{ padding: 32, textAlign: "center", color: "#444", fontSize: 13 }}>No imports yet</div>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-brand-border">
-              {["File", "Status", "Total", "Imported", "Skipped", "Errors", "Uploaded by", "Date"].map((h) => (
-                <th key={h} className="text-left px-5 py-3 text-xs text-brand-text/50 uppercase tracking-wider font-normal">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {imports.map((imp: any) => (
-              <tr key={imp.id} className="border-b border-brand-border/40 hover:bg-brand-card/50 transition">
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <FileText size={13} className="text-brand-text/50" />
-                    <span className="text-white truncate max-w-[180px]">{imp.fileName}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3">
-                  <span className={cn(
-                    "text-xs px-2 py-0.5 rounded-full border",
-                    imp.status === "COMPLETE" ? "badge-positive"
-                    : imp.status === "FAILED"  ? "badge-negative"
-                    : "badge-neutral"
-                  )}>
-                    {imp.status}
-                  </span>
-                </td>
-                <td className="px-5 py-3 text-brand-text">{imp.totalRows}</td>
-                <td className="px-5 py-3 text-green-400">{imp.validRows}</td>
-                <td className="px-5 py-3 text-yellow-400">{imp.duplicateRows}</td>
-                <td className="px-5 py-3">
-                  <span className={imp.invalidRows > 0 ? "text-red-400" : "text-brand-text/40"}>{imp.invalidRows}</span>
-                </td>
-                <td className="px-5 py-3 text-brand-text/70">{imp.uploadedBy?.name ?? "—"}</td>
-                <td className="px-5 py-3 text-brand-text/60 text-xs">{formatDate(imp.createdAt)}</td>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #2a2a2a" }}>
+                {["File", "Status", "Total", "Imported", "Skipped", "Errors", "Uploaded by", "Date"].map((h) => (
+                  <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10, color: "#555", textTransform: "uppercase" as const, letterSpacing: "0.1em", fontWeight: 400 }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {imports.map((imp: any) => {
+                const statusColor = imp.status === "COMPLETE"
+                  ? { text: "#4ade80", bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.2)" }
+                  : imp.status === "FAILED"
+                  ? { text: "#f87171", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.2)" }
+                  : { text: "#facc15", bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.2)" };
+                return (
+                  <tr key={imp.id} style={{ borderBottom: "1px solid rgba(42,42,42,0.5)" }}>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <FileText size={12} color="#555" />
+                        <span style={{ color: "#ffffff", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{imp.fileName}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 9999, color: statusColor.text, backgroundColor: statusColor.bg, border: `1px solid ${statusColor.border}` }}>
+                        {imp.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "#b0b0b0" }}>{imp.totalRows}</td>
+                    <td style={{ padding: "12px 16px", color: "#4ade80" }}>{imp.validRows}</td>
+                    <td style={{ padding: "12px 16px", color: "#facc15" }}>{imp.duplicateRows}</td>
+                    <td style={{ padding: "12px 16px", color: imp.invalidRows > 0 ? "#f87171" : "#444" }}>{imp.invalidRows}</td>
+                    <td style={{ padding: "12px 16px", color: "#666" }}>{imp.uploadedBy?.name ?? "—"}</td>
+                    <td style={{ padding: "12px 16px", color: "#555", fontSize: 11 }}>{formatDate(imp.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
-// ── Example CSV download ──────────────────────────────────────────────────────
 function downloadExampleCSV() {
   const csv = [
     "first_name,last_name,email,location,exam_date,patient_id,doctor_name,phone,appointment_type",
@@ -239,7 +235,6 @@ function downloadExampleCSV() {
   URL.revokeObjectURL(url);
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function ImportsPage() {
   const [lastResult, setLastResult] = useState<any>(null);
   const queryClient = useQueryClient();
@@ -250,26 +245,31 @@ export default function ImportsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-4xl">
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 900, fontFamily: ff }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <h1 className="font-display text-2xl text-white">CSV Import</h1>
-          <p className="text-brand-text text-sm mt-0.5">Upload a patient list to trigger feedback emails</p>
+          <h1 style={{ fontFamily: "var(--font-playfair, Georgia, serif)", fontSize: 26, fontWeight: 600, color: "#ffffff", margin: "0 0 4px" }}>CSV Import</h1>
+          <p style={{ fontSize: 13, color: "#888", margin: 0 }}>Upload a patient list to trigger feedback emails</p>
         </div>
-        <button
-          onClick={downloadExampleCSV}
-          className="flex items-center gap-2 text-sm text-brand-text hover:text-gold-400 border border-brand-border hover:border-gold-500/40 px-3 py-2 rounded-lg transition"
+        <button onClick={downloadExampleCSV} style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "9px 16px", fontSize: 12, color: "#888",
+          border: "1px solid #2a2a2a", borderRadius: 8,
+          background: "transparent", cursor: "pointer", fontFamily: ff,
+          transition: "all 0.15s",
+        }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C9A84C"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.4)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#888"; (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a"; }}
         >
-          <Download size={14} />
-          Example CSV
+          <Download size={13} /> Example CSV
         </button>
       </div>
 
-      <UploadZone onResult={handleResult} />
-
-      {lastResult && <ImportResultCard result={lastResult} />}
-
+      <div style={{ marginBottom: 20 }}><UploadZone onResult={handleResult} /></div>
+      {lastResult && <div style={{ marginBottom: 20 }}><ImportResultCard result={lastResult} /></div>}
       <ImportHistory />
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
