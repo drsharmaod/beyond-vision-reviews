@@ -1,0 +1,363 @@
+// beyond-vision-reviews/prisma/schema.prisma
+// Full data model for Beyond Vision Review Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  LOCATION_MANAGER
+  STAFF
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String?
+  email      String   @unique
+  emailVerified DateTime?
+  image      String?
+  password   String?
+  role       UserRole @default(STAFF)
+  locationId String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location       Location?       @relation(fields: [locationId], references: [id])
+  accounts       Account[]
+  sessions       Session[]
+  patientImports PatientImport[]
+  auditLogs      AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ─── Locations ───────────────────────────────────────────────────────────────
+
+model Location {
+  id           String   @id @default(cuid())
+  name         String
+  code         String   @unique // e.g. "millwoods", "crystallina"
+  reviewLink   String   // Google review URL
+  managerEmail String   // Primary alert recipient
+  managerName  String?
+  alertEmails  String[] // Additional alert recipients
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users           User[]
+  patients        Patient[]
+  examVisits      ExamVisit[]
+  internalAlerts  InternalAlert[]
+  feedbackRequests FeedbackRequest[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// ─── Patient Imports ─────────────────────────────────────────────────────────
+
+enum ImportStatus {
+  PROCESSING
+  COMPLETE
+  FAILED
+}
+
+model PatientImport {
+  id              String       @id @default(cuid())
+  uploadedByUserId String
+  fileName        String
+  fileSize        Int?
+  totalRows       Int          @default(0)
+  validRows       Int          @default(0)
+  invalidRows     Int          @default(0)
+  duplicateRows   Int          @default(0)
+  status          ImportStatus @default(PROCESSING)
+  errorMessage    String?
+  createdAt       DateTime     @default(now())
+
+  uploadedBy User        @relation(fields: [uploadedByUserId], references: [id])
+  examVisits ExamVisit[]
+
+  @@index([uploadedByUserId])
+  @@index([createdAt])
+}
+
+// ─── Patients ────────────────────────────────────────────────────────────────
+
+model Patient {
+  id                 String   @id @default(cuid())
+  externalPatientId  String?
+  firstName          String
+  lastName           String
+  email              String
+  phone              String?
+  locationId         String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  location   Location    @relation(fields: [locationId], references: [id])
+  examVisits ExamVisit[]
+
+  @@unique([email, locationId])
+  @@index([email])
+  @@index([locationId])
+}
+
+// ─── Exam Visits ─────────────────────────────────────────────────────────────
+
+enum SendStatus {
+  PENDING
+  SCHEDULED
+  SENT
+  FAILED
+  SUPPRESSED
+}
+
+model ExamVisit {
+  id               String     @id @default(cuid())
+  patientId        String
+  locationId       String
+  examDate         DateTime
+  doctorName       String?
+  appointmentType  String?
+  importId         String
+  sendStatus       SendStatus @default(PENDING)
+  scheduledSendAt  DateTime?
+  sentAt           DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  patient          Patient         @relation(fields: [patientId], references: [id])
+  location         Location        @relation(fields: [locationId], references: [id])
+  import           PatientImport   @relation(fields: [importId], references: [id])
+  feedbackRequest  FeedbackRequest?
+
+  @@index([patientId])
+  @@index([locationId])
+  @@index([sendStatus])
+  @@index([scheduledSendAt])
+}
+
+// ─── Feedback Requests ───────────────────────────────────────────────────────
+
+enum FeedbackSendStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+model FeedbackRequest {
+  id                String             @id @default(cuid())
+  examVisitId       String             @unique
+  locationId        String
+  emailTo           String
+  emailFrom         String
+  subject           String
+  token             String             @unique // signed JWT for rating links
+  sendStatus        FeedbackSendStatus @default(PENDING)
+  providerMessageId String?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  examVisit        ExamVisit        @relation(fields: [examVisitId], references: [id])
+  location         Location         @relation(fields: [locationId], references: [id])
+  feedbackResponse FeedbackResponse?
+
+  @@index([token])
+  @@index([locationId])
+  @@index([sendStatus])
+}
+
+// ─── Feedback Responses ──────────────────────────────────────────────────────
+
+enum Sentiment {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+model FeedbackResponse {
+  id                  String    @id @default(cuid())
+  feedbackRequestId   String    @unique
+  rating              Int       // 1–5
+  comment             String?   @db.Text
+  sentiment           Sentiment?
+  respondedAt         DateTime  @default(now())
+  reviewPromptShown   Boolean   @default(false)
+  internalAlertSent   Boolean   @default(false)
+  ipAddress           String?
+  userAgent           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  feedbackRequest FeedbackRequest @relation(fields: [feedbackRequestId], references: [id])
+  reviewClicks    ReviewClick[]
+  internalAlerts  InternalAlert[]
+
+  @@index([rating])
+  @@index([sentiment])
+  @@index([respondedAt])
+}
+
+// ─── Review Clicks ───────────────────────────────────────────────────────────
+
+model ReviewClick {
+  id                 String   @id @default(cuid())
+  feedbackResponseId String
+  clickedAt          DateTime @default(now())
+  destinationUrl     String
+  ipAddress          String?
+
+  feedbackResponse FeedbackResponse @relation(fields: [feedbackResponseId], references: [id])
+
+  @@index([feedbackResponseId])
+  @@index([clickedAt])
+}
+
+// ─── Internal Alerts ─────────────────────────────────────────────────────────
+
+enum AlertStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ResolutionStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+model InternalAlert {
+  id                 String           @id @default(cuid())
+  feedbackResponseId String
+  locationId         String
+  alertEmailTo       String[]
+  sendStatus         AlertStatus      @default(PENDING)
+  sentAt             DateTime?
+  resolutionStatus   ResolutionStatus @default(OPEN)
+  managerNotes       String?          @db.Text
+  resolvedAt         DateTime?
+  resolvedByUserId   String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  feedbackResponse FeedbackResponse @relation(fields: [feedbackResponseId], references: [id])
+  location         Location         @relation(fields: [locationId], references: [id])
+
+  @@index([locationId])
+  @@index([sendStatus])
+  @@index([resolutionStatus])
+  @@index([createdAt])
+}
+
+// ─── Email Templates ─────────────────────────────────────────────────────────
+
+enum TemplateType {
+  FEEDBACK_REQUEST
+  POSITIVE_FOLLOWUP
+  NEGATIVE_ALERT
+}
+
+model EmailTemplate {
+  id           String       @id @default(cuid())
+  templateType TemplateType @unique
+  name         String
+  subject      String
+  htmlBody     String       @db.Text
+  textBody     String       @db.Text
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+// ─── System Settings ─────────────────────────────────────────────────────────
+
+model SystemSettings {
+  id                       String   @id @default(cuid())
+  defaultSenderEmail       String   @default("feedback@beyondvision.ca")
+  defaultSenderName        String   @default("Beyond Vision Optometry")
+  duplicateSuppressionDays Int      @default(90)
+  sendDelayDays            Int      @default(1)
+  immediateSendEnabled     Boolean  @default(false)
+  brandingPrimaryColor     String   @default("#C9A84C")
+  brandingLogoUrl          String?
+  feedbackPageTitle        String   @default("How was your experience?")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+// ─── Audit Logs ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  eventType    String   // e.g. "IMPORT_CREATED", "EMAIL_SENT", "RATING_SUBMITTED"
+  entityType   String   // e.g. "PatientImport", "FeedbackRequest"
+  entityId     String?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([eventType])
+  @@index([entityType])
+  @@index([createdAt])
+}

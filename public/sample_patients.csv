@@ -1,0 +1,11 @@
+first_name,last_name,email,location,exam_date,patient_id,doctor_name,phone,appointment_type
+Sarah,Mitchell,sarah.mitchell@example.com,millwoods,2024-03-15,P001,Dr. Lu,780-555-0100,Comprehensive Eye Exam
+James,Okafor,james.okafor@example.com,crystallina,2024-03-15,P002,Dr. Poon,780-555-0101,Contact Lens Fitting
+Priya,Sharma,priya.sharma@example.com,grange,2024-03-14,P003,,780-555-0102,
+Michael,Chen,michael.chen@example.com,terwillegar,2024-03-14,P004,,780-555-0103,Dry Eye Assessment
+Emily,Tremblay,emily.tremblay@example.com,millwoods,2024-03-13,P005,Dr. Lu,780-555-0104,Myopia Management
+David,Kowalski,david.kowalski@example.com,crystallina,2024-03-13,,780-555-0105,,
+Aisha,Patel,aisha.patel@example.com,grange,2024-03-12,P007,,,Comprehensive Eye Exam
+Robert,Nguyen,robert.nguyen@example.com,terwillegar,2024-03-12,P008,,780-555-0107,
+Jennifer,Williams,jennifer.williams@example.com,millwoods,2024-03-11,P009,Dr. Lu,780-555-0108,Ortho-K Consultation
+Marcus,Brown,marcus.brown@example.com,crystallina,2024-03-11,P010,Dr. Poon,,Contact Lens Fitting

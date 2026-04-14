@@ -1,0 +1,209 @@
+// src/app/api/imports/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { parseAndValidateCSV, checkSuppressionWindow } from "@/lib/csv/validator";
+import { enqueueFeedbackSend } from "@/lib/queue";
+import { addDays } from "date-fns";
+
+// GET /api/imports — list all imports
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const page  = parseInt(searchParams.get("page")  ?? "1");
+  const limit = parseInt(searchParams.get("limit") ?? "20");
+  const skip  = (page - 1) * limit;
+
+  const [imports, total] = await Promise.all([
+    prisma.patientImport.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        uploadedBy: { select: { name: true, email: true } },
+        _count: { select: { examVisits: true } },
+      },
+    }),
+    prisma.patientImport.count(),
+  ]);
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      imports,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    },
+  });
+}
+
+// POST /api/imports — upload and process CSV
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  if (session.user.role === "STAFF") {
+    return NextResponse.json({ success: false, error: "Insufficient permissions" }, { status: 403 });
+  }
+
+  let importRecord: any;
+
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
+
+    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB ?? "10");
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      return NextResponse.json({ success: false, error: `File exceeds ${maxSizeMB}MB limit` }, { status: 400 });
+    }
+
+    if (!file.name.endsWith(".csv")) {
+      return NextResponse.json({ success: false, error: "Only CSV files are accepted" }, { status: 400 });
+    }
+
+    // Create initial import record
+    importRecord = await prisma.patientImport.create({
+      data: {
+        uploadedByUserId: session.user.id,
+        fileName:         file.name,
+        fileSize:         file.size,
+        status:           "PROCESSING",
+      },
+    });
+
+    const csvContent = await file.text();
+
+    // Load valid locations
+    const locations = await prisma.location.findMany({ where: { isActive: true } });
+    const locationMap = new Map(locations.map((l) => [l.code, l]));
+    const validCodes  = locations.map((l) => l.code);
+
+    const parsed = await parseAndValidateCSV(csvContent, validCodes);
+
+    // Load system settings for suppression window & send delay
+    const settings = await prisma.systemSettings.findFirst();
+    const suppressionDays = settings?.duplicateSuppressionDays ?? 90;
+    const sendDelayDays   = settings?.sendDelayDays ?? 1;
+    const immediate       = settings?.immediateSendEnabled ?? false;
+
+    let suppressed = 0;
+    let created    = 0;
+    const examVisitIds: string[] = [];
+
+    for (const row of parsed.valid) {
+      const location = locationMap.get(row.locationCode);
+      if (!location) continue;
+
+      // DB suppression check
+      const isSuppressed = await checkSuppressionWindow(row.email, row.locationCode, suppressionDays);
+      if (isSuppressed) {
+        suppressed++;
+        continue;
+      }
+
+      // Upsert patient
+      const patient = await prisma.patient.upsert({
+        where: { email_locationId: { email: row.email, locationId: location.id } },
+        update: {
+          firstName: row.firstName,
+          lastName:  row.lastName,
+          phone:     row.phone,
+        },
+        create: {
+          externalPatientId: row.patientId,
+          firstName:   row.firstName,
+          lastName:    row.lastName,
+          email:       row.email,
+          phone:       row.phone,
+          locationId:  location.id,
+        },
+      });
+
+      const scheduledAt = immediate
+        ? new Date()
+        : addDays(row.examDate, sendDelayDays);
+
+      const visit = await prisma.examVisit.create({
+        data: {
+          patientId:      patient.id,
+          locationId:     location.id,
+          examDate:       row.examDate,
+          doctorName:     row.doctorName,
+          appointmentType: row.appointmentType,
+          importId:       importRecord.id,
+          sendStatus:     "SCHEDULED",
+          scheduledSendAt: scheduledAt,
+        },
+      });
+
+      examVisitIds.push(visit.id);
+      created++;
+    }
+
+    // Finalise import record
+    const duplicatesTotal = parsed.duplicates + suppressed;
+    await prisma.patientImport.update({
+      where: { id: importRecord.id },
+      data: {
+        status:        "COMPLETE",
+        totalRows:     parsed.totalRows,
+        validRows:     created,
+        invalidRows:   parsed.invalid.length,
+        duplicateRows: duplicatesTotal,
+      },
+    });
+
+    // Enqueue emails
+    const now = Date.now();
+    for (const visitId of examVisitIds) {
+      const visit = await prisma.examVisit.findUnique({ where: { id: visitId } });
+      if (!visit?.scheduledSendAt) continue;
+      const delayMs = Math.max(0, visit.scheduledSendAt.getTime() - now);
+      await enqueueFeedbackSend(visitId, delayMs > 0 ? delayMs : undefined);
+    }
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: session.user.id,
+        eventType:   "IMPORT_CREATED",
+        entityType:  "PatientImport",
+        entityId:    importRecord.id,
+        metadata:    {
+          fileName:      file.name,
+          totalRows:     parsed.totalRows,
+          validRows:     created,
+          invalidRows:   parsed.invalid.length,
+          duplicateRows: duplicatesTotal,
+          queued:        examVisitIds.length,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        importId:     importRecord.id,
+        fileName:     file.name,
+        totalRows:    parsed.totalRows,
+        validRows:    created,
+        invalidRows:  parsed.invalid.length,
+        duplicateRows: duplicatesTotal,
+        queued:       examVisitIds.length,
+        errors:       parsed.invalid.flatMap((r) => r.errors),
+      },
+    });
+
+  } catch (err: any) {
+    if (importRecord) {
+      await prisma.patientImport.update({
+        where: { id: importRecord.id },
+        data:  { status: "FAILED", errorMessage: err.message },
+      }).catch(() => {});
+    }
+    console.error("Import error:", err);
+    return NextResponse.json({ success: false, error: err.message ?? "Import failed" }, { status: 500 });
+  }
+}
