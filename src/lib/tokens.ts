@@ -1,5 +1,5 @@
 // src/lib/tokens.ts
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "30d";
@@ -15,7 +15,8 @@ export interface FeedbackTokenPayload {
 
 /** Sign a token for the feedback email link. */
 export function signFeedbackToken(payload: Omit<FeedbackTokenPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"] };
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
 /** Verify and decode a feedback token. Throws if invalid or expired. */
