@@ -49,32 +49,64 @@ function FeedbackForm() {
   const displayRating = hovered || rating;
 
   return (
-    <div className="min-h-screen bg-brand-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Glow orbs */}
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ backgroundColor: "#0a0a0a" }}
+    >
+      {/* Glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gold-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-gold-600/3 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-3xl"
+          style={{ background: "radial-gradient(ellipse, rgba(201,168,76,0.07) 0%, transparent 70%)" }} />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full blur-3xl"
+          style={{ background: "radial-gradient(ellipse, rgba(201,168,76,0.04) 0%, transparent 70%)" }} />
       </div>
 
       <div
         className="relative w-full max-w-md"
-        style={{ opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(16px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}
+        style={{
+          opacity: mounted ? 1 : 0,
+          transform: mounted ? "translateY(0)" : "translateY(16px)",
+          transition: "opacity 0.5s ease, transform 0.5s ease",
+          fontFamily: "var(--font-inter, system-ui, sans-serif)",
+        }}
       >
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex flex-col items-center">
-            <div className="w-10 h-px mb-3 bg-gold-500/50" />
-            <span className="font-display text-2xl font-bold text-white tracking-widest uppercase">BEYOND VISION</span>
-            <span className="text-gold-500 text-[10px] tracking-[0.5em] uppercase mt-1">OPTOMETRY</span>
-            <div className="w-10 h-px mt-3 bg-gold-500/50" />
+            <div className="w-10 h-px mb-3" style={{ background: "linear-gradient(90deg, transparent, #C9A84C, transparent)" }} />
+            <span
+              className="text-white text-2xl font-bold uppercase"
+              style={{ fontFamily: "var(--font-playfair, Georgia, serif)", letterSpacing: "0.25em" }}
+            >
+              BEYOND VISION
+            </span>
+            <span className="text-xs uppercase mt-1" style={{ color: "#C9A84C", letterSpacing: "0.5em" }}>
+              OPTOMETRY
+            </span>
+            <div className="w-10 h-px mt-3" style={{ background: "linear-gradient(90deg, transparent, #C9A84C, transparent)" }} />
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-brand-card border border-brand-border rounded-2xl p-8 shadow-2xl shadow-black/60">
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            backgroundColor: "#1a1a1a",
+            border: "1px solid #2a2a2a",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05)",
+          }}
+        >
+          {/* Heading */}
           <div className="text-center mb-8">
-            <h1 className="font-display text-2xl font-semibold text-white mb-2">How was your visit?</h1>
-            <p className="text-brand-text text-sm">Your experience matters to us. Share how we did.</p>
+            <h1
+              className="text-white text-2xl font-semibold mb-2"
+              style={{ fontFamily: "var(--font-playfair, Georgia, serif)" }}
+            >
+              How was your visit?
+            </h1>
+            <p style={{ color: "#b0b0b0", fontSize: 14 }}>
+              Your experience matters to us. Share how we did.
+            </p>
           </div>
 
           {/* Stars */}
@@ -87,12 +119,11 @@ function FeedbackForm() {
                   onMouseEnter={() => setHovered(star)}
                   onMouseLeave={() => setHovered(0)}
                   onClick={() => setRating(star)}
-                  className="p-1 transition-transform active:scale-95"
                   style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
                     transform: isActive ? "scale(1.15)" : "scale(1)",
-                    filter: isActive ? "drop-shadow(0 0 8px rgba(201,168,76,0.6))" : "none",
+                    filter: isActive ? "drop-shadow(0 0 10px rgba(201,168,76,0.6))" : "none",
                     transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1), filter 0.2s ease",
-                    background: "none", border: "none", cursor: "pointer",
                   }}
                   aria-label={`${star} stars`}
                 >
@@ -112,20 +143,20 @@ function FeedbackForm() {
           </div>
 
           {/* Star label */}
-          <div className="text-center h-6 mb-8">
+          <div className="text-center mb-8" style={{ height: 24 }}>
             {displayRating > 0
-              ? <span className="text-gold-500 text-xs font-medium tracking-widest uppercase">{starLabels[displayRating]}</span>
-              : <span className="text-brand-text/40 text-sm">Tap a star to rate your experience</span>
+              ? <span style={{ color: "#C9A84C", fontSize: 12, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase" }}>{starLabels[displayRating]}</span>
+              : <span style={{ color: "#555", fontSize: 13 }}>Tap a star to rate your experience</span>
             }
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-brand-border mb-7" />
+          <div className="mb-7" style={{ height: 1, background: "linear-gradient(90deg, transparent, #2a2a2a, transparent)" }} />
 
           {/* Comment */}
           <div className="mb-6">
-            <label className="block text-[11px] text-brand-text/60 uppercase tracking-wider mb-2 font-medium">
-              Additional Comments <span className="normal-case tracking-normal text-brand-text/30 font-normal">(optional)</span>
+            <label style={{ display: "block", fontSize: 11, color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8, fontWeight: 500 }}>
+              Additional Comments <span style={{ color: "#444", textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>(optional)</span>
             </label>
             <textarea
               value={comment}
@@ -133,37 +164,52 @@ function FeedbackForm() {
               rows={3}
               maxLength={2000}
               placeholder="Tell us more about your visit…"
-              className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white text-sm placeholder:text-brand-text/30 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500/20 transition resize-none"
+              className="w-full rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none transition"
+              style={{
+                backgroundColor: "#111",
+                border: "1px solid #2a2a2a",
+                color: "#fff",
+                fontFamily: "inherit",
+              }}
+              onFocus={(e) => { e.target.style.borderColor = "#C9A84C"; e.target.style.boxShadow = "0 0 0 1px rgba(201,168,76,0.2)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "#2a2a2a"; e.target.style.boxShadow = "none"; }}
             />
-            <div className="text-right text-xs text-brand-text/30 mt-1">{comment.length}/2000</div>
+            <div className="text-right mt-1" style={{ fontSize: 11, color: "#444" }}>{comment.length}/2000</div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{error}</div>
+            <div className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+              {error}
+            </div>
           )}
 
           {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={loading || !rating}
-            className="w-full font-semibold py-4 rounded-xl text-xs tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl py-4 text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all duration-200"
             style={{
+              letterSpacing: "0.12em",
               background: !rating || loading ? "#1e1e1e" : "linear-gradient(135deg, #C9A84C, #a8862e)",
               color: !rating || loading ? "#555" : "#000",
+              border: "none",
+              cursor: !rating || loading ? "not-allowed" : "pointer",
               boxShadow: !rating || loading ? "none" : "0 4px 24px rgba(201,168,76,0.3)",
+              opacity: !rating || loading ? 0.6 : 1,
+              fontFamily: "inherit",
             }}
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {loading ? "Submitting…" : "Submit Feedback"}
           </button>
 
-          <p className="text-center text-xs text-brand-text/25 mt-4">
+          <p className="text-center mt-4" style={{ fontSize: 11, color: "#3a3a3a" }}>
             Your feedback is private and helps us improve.
           </p>
         </div>
 
-        <p className="text-center text-brand-text/20 text-xs mt-6">
+        <p className="text-center mt-6" style={{ fontSize: 11, color: "#333" }}>
           © {new Date().getFullYear()} Beyond Vision Optometry · Edmonton, Alberta
         </p>
       </div>
