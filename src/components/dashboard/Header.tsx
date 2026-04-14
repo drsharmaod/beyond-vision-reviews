@@ -1,7 +1,7 @@
 // src/components/dashboard/Header.tsx
 "use client";
 import { Session } from "next-auth";
-import { Bell, Menu } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
@@ -10,7 +10,7 @@ interface Props { session: Session; }
 export function DashboardHeader({ session }: Props) {
   const { data } = useQuery({
     queryKey: ["alert-count"],
-    queryFn:  async () => {
+    queryFn: async () => {
       const r = await fetch("/api/alerts?status=OPEN&limit=1");
       const j = await r.json();
       return j.data?.pagination?.total ?? 0;
@@ -19,33 +19,51 @@ export function DashboardHeader({ session }: Props) {
   });
 
   const openAlerts = data ?? 0;
+  const initials = (session.user?.name ?? "U")[0].toUpperCase();
 
   return (
-    <header className="h-14 bg-brand-dark border-b border-brand-border flex items-center px-6 gap-4 shrink-0">
-      {/* Mobile menu trigger (omitted handler for brevity) */}
-      <button className="lg:hidden text-brand-text hover:text-white transition">
-        <Menu size={20} />
-      </button>
-
-      <div className="flex-1" />
+    <header style={{
+      height: 56,
+      backgroundColor: "#141414",
+      borderBottom: "1px solid #2a2a2a",
+      display: "flex",
+      alignItems: "center",
+      padding: "0 24px",
+      gap: 16,
+      flexShrink: 0,
+    }}>
+      <div style={{ flex: 1 }} />
 
       {/* Alert badge */}
       {openAlerts > 0 && (
         <Link
           href="/alerts"
-          className="relative flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs hover:bg-red-500/15 transition"
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "6px 12px",
+            backgroundColor: "rgba(239,68,68,0.1)",
+            border: "1px solid rgba(239,68,68,0.2)",
+            borderRadius: 8, color: "#f87171",
+            fontSize: 12, textDecoration: "none",
+            transition: "background-color 0.15s ease",
+          }}
         >
-          <Bell size={13} className="animate-pulse" />
+          <Bell size={12} style={{ animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" }} />
           <span>{openAlerts} open alert{openAlerts !== 1 ? "s" : ""}</span>
         </Link>
       )}
 
-      {/* Avatar */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-full gold-gradient flex items-center justify-center text-black text-xs font-bold">
-          {(session.user?.name ?? "U")[0].toUpperCase()}
+      {/* Avatar + name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: "50%",
+          background: "linear-gradient(135deg, #C9A84C, #a8862e)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#000", fontSize: 12, fontWeight: 700, flexShrink: 0,
+        }}>
+          {initials}
         </div>
-        <span className="hidden md:block text-sm text-brand-text">{session.user?.name}</span>
+        <span style={{ fontSize: 13, color: "#b0b0b0" }}>{session.user?.name}</span>
       </div>
     </header>
   );

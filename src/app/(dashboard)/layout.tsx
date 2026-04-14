@@ -10,11 +10,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/login");
 
   return (
-    <div className="flex h-screen bg-brand-black overflow-hidden">
+    <div style={{
+      display: "flex",
+      height: "100vh",
+      backgroundColor: "#0a0a0a",
+      overflow: "hidden",
+    }}>
       <DashboardSidebar session={session} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}>
         <DashboardHeader session={session} />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "32px",
+          backgroundColor: "#0a0a0a",
+        }}>
           {children}
         </main>
       </div>
