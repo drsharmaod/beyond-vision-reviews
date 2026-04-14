@@ -15,7 +15,7 @@ export interface FeedbackTokenPayload {
 
 /** Sign a token for the feedback email link. */
 export function signFeedbackToken(payload: Omit<FeedbackTokenPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 }
 
 /** Verify and decode a feedback token. Throws if invalid or expired. */
