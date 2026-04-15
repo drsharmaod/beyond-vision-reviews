@@ -24,12 +24,12 @@ export function verifyFeedbackToken(token: string): FeedbackTokenPayload {
   return jwt.verify(token, JWT_SECRET) as FeedbackTokenPayload;
 }
 
-/** Build per-rating URLs for a feedback request token. */
+/** Build per-rating URLs — uses /api/r/ path */
 export function buildRatingUrls(token: string, baseUrl?: string): Record<string, string> {
   const base = baseUrl ?? process.env.FEEDBACK_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
   const urls: Record<string, string> = {};
   for (let star = 1; star <= 5; star++) {
-    urls[`rating_${star}_url`] = `${base}/r/${token}/${star}`;
+    urls[`rating_${star}_url`] = `${base}/api/r/${token}/${star}`;
   }
   return urls;
 }
