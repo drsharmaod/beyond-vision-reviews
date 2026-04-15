@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
           for (let star = 1; star <= 5; star++) {
             ratingUrls[`rating_${star}_url`] = `${appUrl}/api/r/${token}/${star}`;
           }
+          ratingUrls["doctor_name"] = (row as any).doctorName ?? "The Beyond Vision Team";
 
           // Step 5: Send email via Resend
           const result = await sendFeedbackRequestEmail({
