@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Session } from "next-auth";
 import {
   LayoutDashboard, Upload, MapPin, Bell, Mail, Settings,
-  LogOut, Eye, ChevronRight, FileText,
+  LogOut, ChevronRight, FileText,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
