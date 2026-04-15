@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
 
     const settings        = await prisma.systemSettings.findFirst();
     const suppressionDays = settings?.duplicateSuppressionDays ?? 90;
-    const sendDelayDays   = settings?.sendDelayDays ?? 1;
-    const immediate       = settings?.immediateSendEnabled ?? false;
+    // sendDelayDays removed
+    const immediate       = true; // always send immediately
     const senderEmail     = settings?.defaultSenderEmail ?? process.env.EMAIL_FROM ?? "feedback@beyondvision.ca";
     const senderName      = settings?.defaultSenderName  ?? process.env.EMAIL_FROM_NAME ?? "Beyond Vision Optometry";
     const appUrl          = process.env.NEXT_PUBLIC_APP_URL ?? "https://beyond-vision-reviews.vercel.app";
