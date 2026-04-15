@@ -38,37 +38,24 @@ export function DashboardSidebar({ session }: Props) {
       overflowY: "auto",
     }}>
       {/* Logo */}
-      <div style={{
-        padding: "24px",
-        borderBottom: "1px solid #2a2a2a",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-      }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: 8,
-          background: "linear-gradient(135deg, #C9A84C, #a8862e)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          <Eye size={16} color="#000" />
-        </div>
-        <div>
-          <div style={{
-            fontFamily: "var(--font-playfair, Georgia, serif)",
-            fontSize: 13, fontWeight: 700, color: "#ffffff",
-            letterSpacing: "0.15em", textTransform: "uppercase",
-          }}>
-            Beyond Vision
-          </div>
-          <div style={{
-            fontSize: 9, color: "#C9A84C",
-            letterSpacing: "0.4em", textTransform: "uppercase",
-          }}>
-            Reviews
-          </div>
-        </div>
-      </div>
+<div style={{
+  padding: "20px 24px",
+  borderBottom: "1px solid #2a2a2a",
+  textAlign: "center",
+}}>
+  <img
+    src="https://beyondvision.ca/wp-content/uploads/2017/08/logo-white.png"
+    alt="Beyond Vision"
+    style={{ width: "140px", maxWidth: "100%", display: "block", margin: "0 auto" }}
+  />
+  <div style={{
+    fontSize: 9, color: "#C9A84C",
+    letterSpacing: "0.4em", textTransform: "uppercase",
+    marginTop: 8,
+  }}>
+    REVIEWS
+  </div>
+</div>
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
