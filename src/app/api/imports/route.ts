@@ -4,8 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { parseAndValidateCSV, checkSuppressionWindow } from "@/lib/csv/validator";
-import { enqueueFeedbackSend } from "@/lib/queue";
-import { addDays } from "date-fns";
+import { sendFeedbackRequestEmail } from "@/lib/email/sender";
+import { signFeedbackToken, buildRatingUrls } from "@/lib/tokens";
+import { addDays, format } from "date-fns";
 
 // GET /api/imports — list all imports
 export async function GET(req: NextRequest) {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-  if (session.user.role === "STAFF") {
+  if ((session.user as any).role === "STAFF") {
     return NextResponse.json({ success: false, error: "Insufficient permissions" }, { status: 403 });
   }
 
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     // Create initial import record
     importRecord = await prisma.patientImport.create({
       data: {
-        uploadedByUserId: session.user.id,
+        uploadedByUserId: (session.user as any).id,
         fileName:         file.name,
         fileSize:         file.size,
         status:           "PROCESSING",
@@ -82,37 +83,32 @@ export async function POST(req: NextRequest) {
 
     const parsed = await parseAndValidateCSV(csvContent, validCodes);
 
-    // Load system settings for suppression window & send delay
+    // Load system settings
     const settings = await prisma.systemSettings.findFirst();
     const suppressionDays = settings?.duplicateSuppressionDays ?? 90;
     const sendDelayDays   = settings?.sendDelayDays ?? 1;
     const immediate       = settings?.immediateSendEnabled ?? false;
+    const senderEmail     = settings?.defaultSenderEmail ?? process.env.EMAIL_FROM;
+    const senderName      = settings?.defaultSenderName  ?? process.env.EMAIL_FROM_NAME;
 
     let suppressed = 0;
     let created    = 0;
-    const examVisitIds: string[] = [];
+    let queued     = 0;
 
     for (const row of parsed.valid) {
       const location = locationMap.get(row.locationCode);
       if (!location) continue;
 
-      // DB suppression check
+      // Suppression check
       const isSuppressed = await checkSuppressionWindow(row.email, row.locationCode, suppressionDays);
-      if (isSuppressed) {
-        suppressed++;
-        continue;
-      }
+      if (isSuppressed) { suppressed++; continue; }
 
       // Upsert patient
       const patient = await prisma.patient.upsert({
         where: { email_locationId: { email: row.email, locationId: location.id } },
-        update: {
-          firstName: row.firstName,
-          lastName:  row.lastName,
-          phone:     row.phone,
-        },
+        update: { firstName: row.firstName, lastName: row.lastName, phone: row.phone },
         create: {
-          externalPatientId: row.patientId,
+          externalPatientId: (row as any).patientId,
           firstName:   row.firstName,
           lastName:    row.lastName,
           email:       row.email,
@@ -121,25 +117,82 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const scheduledAt = immediate
-        ? new Date()
-        : addDays(row.examDate, sendDelayDays);
+      const scheduledAt = immediate ? new Date() : addDays(row.examDate, sendDelayDays);
+      const shouldSendNow = immediate || scheduledAt <= new Date();
 
       const visit = await prisma.examVisit.create({
         data: {
-          patientId:      patient.id,
-          locationId:     location.id,
-          examDate:       row.examDate,
-          doctorName:     row.doctorName,
-          appointmentType: row.appointmentType,
-          importId:       importRecord.id,
-          sendStatus:     "SCHEDULED",
+          patientId:       patient.id,
+          locationId:      location.id,
+          examDate:        row.examDate,
+          doctorName:      (row as any).doctorName,
+          appointmentType: (row as any).appointmentType,
+          importId:        importRecord.id,
+          sendStatus:      shouldSendNow ? "SENT" : "SCHEDULED",
           scheduledSendAt: scheduledAt,
+          sentAt:          shouldSendNow ? new Date() : undefined,
         },
       });
 
-      examVisitIds.push(visit.id);
       created++;
+
+      // Send email directly if immediate or scheduled for now
+      if (shouldSendNow) {
+        try {
+          // Generate token
+          const token = signFeedbackToken({
+            feedbackRequestId: "", // will update after creating FeedbackRequest
+            examVisitId:       visit.id,
+            patientEmail:      patient.email,
+            locationCode:      location.code,
+          });
+
+          const ratingUrls = buildRatingUrls(token);
+
+          // Create FeedbackRequest record
+          const feedbackRequest = await prisma.feedbackRequest.create({
+            data: {
+              examVisitId:  visit.id,
+              locationId:   location.id,
+              emailTo:      patient.email,
+              emailFrom:    senderEmail ?? "feedback@beyondvision.ca",
+              subject:      `How was your visit at Beyond Vision ${location.name}?`,
+              token,
+              sendStatus:   "SENT",
+            },
+          });
+
+          // Send via Resend
+          const result = await sendFeedbackRequestEmail({
+            to:           patient.email,
+            firstName:    patient.firstName,
+            locationName: location.name,
+            examDate:     format(row.examDate, "MMMM d, yyyy"),
+            patientEmail: patient.email,
+            ratingUrls,
+            senderEmail,
+            senderName,
+          });
+
+          if (result.success) {
+            await prisma.feedbackRequest.update({
+              where: { id: feedbackRequest.id },
+              data: {
+                sendStatus:        "SENT",
+                providerMessageId: result.messageId,
+              },
+            });
+            queued++;
+          } else {
+            await prisma.feedbackRequest.update({
+              where: { id: feedbackRequest.id },
+              data: { sendStatus: "FAILED" },
+            });
+          }
+        } catch (emailErr: any) {
+          console.error("Email send error:", emailErr.message);
+        }
+      }
     }
 
     // Finalise import record
@@ -155,29 +208,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Enqueue emails
-    const now = Date.now();
-    for (const visitId of examVisitIds) {
-      const visit = await prisma.examVisit.findUnique({ where: { id: visitId } });
-      if (!visit?.scheduledSendAt) continue;
-      const delayMs = Math.max(0, visit.scheduledSendAt.getTime() - now);
-      await enqueueFeedbackSend(visitId, delayMs > 0 ? delayMs : undefined);
-    }
-
     // Audit log
     await prisma.auditLog.create({
       data: {
-        actorUserId: session.user.id,
+        actorUserId: (session.user as any).id,
         eventType:   "IMPORT_CREATED",
         entityType:  "PatientImport",
         entityId:    importRecord.id,
-        metadata:    {
+        metadata: {
           fileName:      file.name,
           totalRows:     parsed.totalRows,
           validRows:     created,
           invalidRows:   parsed.invalid.length,
           duplicateRows: duplicatesTotal,
-          queued:        examVisitIds.length,
+          queued,
         },
       },
     });
@@ -191,7 +235,7 @@ export async function POST(req: NextRequest) {
         validRows:    created,
         invalidRows:  parsed.invalid.length,
         duplicateRows: duplicatesTotal,
-        queued:       examVisitIds.length,
+        queued,
         errors:       parsed.invalid.flatMap((r) => r.errors),
       },
     });
