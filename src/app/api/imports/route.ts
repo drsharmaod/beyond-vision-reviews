@@ -20,8 +20,7 @@ export async function GET(req: NextRequest) {
 
   const [imports, total] = await Promise.all([
     prisma.patientImport.findMany({
-      skip,
-      take: limit,
+      skip, take: limit,
       orderBy: { createdAt: "desc" },
       include: {
         uploadedBy: { select: { name: true, email: true } },
@@ -33,10 +32,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    data: {
-      imports,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    },
+    data: { imports, pagination: { page, limit, total, pages: Math.ceil(total / limit) } },
   });
 }
 
@@ -59,37 +55,32 @@ export async function POST(req: NextRequest) {
     if (file.size > maxSizeMB * 1024 * 1024) {
       return NextResponse.json({ success: false, error: `File exceeds ${maxSizeMB}MB limit` }, { status: 400 });
     }
-
     if (!file.name.endsWith(".csv")) {
       return NextResponse.json({ success: false, error: "Only CSV files are accepted" }, { status: 400 });
     }
 
-    // Create initial import record
     importRecord = await prisma.patientImport.create({
       data: {
         uploadedByUserId: (session.user as any).id,
-        fileName:         file.name,
-        fileSize:         file.size,
-        status:           "PROCESSING",
+        fileName: file.name,
+        fileSize: file.size,
+        status: "PROCESSING",
       },
     });
 
     const csvContent = await file.text();
-
-    // Load valid locations
-    const locations = await prisma.location.findMany({ where: { isActive: true } });
+    const locations  = await prisma.location.findMany({ where: { isActive: true } });
     const locationMap = new Map(locations.map((l) => [l.code, l]));
     const validCodes  = locations.map((l) => l.code);
+    const parsed      = await parseAndValidateCSV(csvContent, validCodes);
 
-    const parsed = await parseAndValidateCSV(csvContent, validCodes);
-
-    // Load system settings
-    const settings = await prisma.systemSettings.findFirst();
+    const settings        = await prisma.systemSettings.findFirst();
     const suppressionDays = settings?.duplicateSuppressionDays ?? 90;
     const sendDelayDays   = settings?.sendDelayDays ?? 1;
     const immediate       = settings?.immediateSendEnabled ?? false;
-    const senderEmail     = settings?.defaultSenderEmail ?? process.env.EMAIL_FROM;
-    const senderName      = settings?.defaultSenderName  ?? process.env.EMAIL_FROM_NAME;
+    const senderEmail     = settings?.defaultSenderEmail ?? process.env.EMAIL_FROM ?? "feedback@beyondvision.ca";
+    const senderName      = settings?.defaultSenderName  ?? process.env.EMAIL_FROM_NAME ?? "Beyond Vision Optometry";
+    const appUrl          = process.env.NEXT_PUBLIC_APP_URL ?? "https://beyond-vision-reviews.vercel.app";
 
     let suppressed = 0;
     let created    = 0;
@@ -99,7 +90,6 @@ export async function POST(req: NextRequest) {
       const location = locationMap.get(row.locationCode);
       if (!location) continue;
 
-      // Suppression check
       const isSuppressed = await checkSuppressionWindow(row.email, row.locationCode, suppressionDays);
       if (isSuppressed) { suppressed++; continue; }
 
@@ -109,17 +99,18 @@ export async function POST(req: NextRequest) {
         update: { firstName: row.firstName, lastName: row.lastName, phone: row.phone },
         create: {
           externalPatientId: (row as any).patientId,
-          firstName:   row.firstName,
-          lastName:    row.lastName,
-          email:       row.email,
-          phone:       row.phone,
-          locationId:  location.id,
+          firstName:  row.firstName,
+          lastName:   row.lastName,
+          email:      row.email,
+          phone:      row.phone,
+          locationId: location.id,
         },
       });
 
-      const scheduledAt = immediate ? new Date() : addDays(row.examDate, sendDelayDays);
+      const scheduledAt  = immediate ? new Date() : addDays(row.examDate, sendDelayDays);
       const shouldSendNow = immediate || scheduledAt <= new Date();
 
+      // Create exam visit
       const visit = await prisma.examVisit.create({
         data: {
           patientId:       patient.id,
@@ -136,33 +127,40 @@ export async function POST(req: NextRequest) {
 
       created++;
 
-      // Send email directly if immediate or scheduled for now
       if (shouldSendNow) {
         try {
-          // Generate token
-          const token = signFeedbackToken({
-            feedbackRequestId: "", // will update after creating FeedbackRequest
-            examVisitId:       visit.id,
-            patientEmail:      patient.email,
-            locationCode:      location.code,
-          });
-
-          const ratingUrls = buildRatingUrls(token);
-
-          // Create FeedbackRequest record
+          // Step 1: Create FeedbackRequest with a placeholder token first
+          const placeholderToken = "placeholder";
           const feedbackRequest = await prisma.feedbackRequest.create({
             data: {
               examVisitId:  visit.id,
               locationId:   location.id,
               emailTo:      patient.email,
-              emailFrom:    senderEmail ?? "feedback@beyondvision.ca",
-              subject:      `How was your visit at Beyond Vision ${location.name}?`,
-              token,
-              sendStatus:   "SENT",
+              emailFrom:    senderEmail,
+              subject:      `How was your visit at ${location.name}?`,
+              token:        placeholderToken + "-" + visit.id, // temp unique token
+              sendStatus:   "PENDING",
             },
           });
 
-          // Send via Resend
+          // Step 2: Now sign the token with the REAL feedbackRequestId
+          const token = signFeedbackToken({
+            feedbackRequestId: feedbackRequest.id,
+            examVisitId:       visit.id,
+            patientEmail:      patient.email,
+            locationCode:      location.code,
+          });
+
+          // Step 3: Update FeedbackRequest with the real token
+          await prisma.feedbackRequest.update({
+            where: { id: feedbackRequest.id },
+            data:  { token },
+          });
+
+          // Step 4: Build rating URLs with the real token
+          const ratingUrls = buildRatingUrls(token, appUrl);
+
+          // Step 5: Send email via Resend
           const result = await sendFeedbackRequestEmail({
             to:           patient.email,
             firstName:    patient.firstName,
@@ -174,28 +172,25 @@ export async function POST(req: NextRequest) {
             senderName,
           });
 
-          if (result.success) {
-            await prisma.feedbackRequest.update({
-              where: { id: feedbackRequest.id },
-              data: {
-                sendStatus:        "SENT",
-                providerMessageId: result.messageId,
-              },
-            });
-            queued++;
-          } else {
-            await prisma.feedbackRequest.update({
-              where: { id: feedbackRequest.id },
-              data: { sendStatus: "FAILED" },
-            });
-          }
+          // Step 6: Update send status
+          await prisma.feedbackRequest.update({
+            where: { id: feedbackRequest.id },
+            data: {
+              sendStatus:        result.success ? "SENT" : "FAILED",
+              providerMessageId: result.messageId,
+              sentAt:            result.success ? new Date() : undefined,
+            } as any,
+          });
+
+          if (result.success) queued++;
+          else console.error("Email failed:", result.error);
+
         } catch (emailErr: any) {
           console.error("Email send error:", emailErr.message);
         }
       }
     }
 
-    // Finalise import record
     const duplicatesTotal = parsed.duplicates + suppressed;
     await prisma.patientImport.update({
       where: { id: importRecord.id },
@@ -208,7 +203,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         actorUserId: (session.user as any).id,
@@ -229,14 +223,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        importId:     importRecord.id,
-        fileName:     file.name,
-        totalRows:    parsed.totalRows,
-        validRows:    created,
-        invalidRows:  parsed.invalid.length,
+        importId:      importRecord.id,
+        fileName:      file.name,
+        totalRows:     parsed.totalRows,
+        validRows:     created,
+        invalidRows:   parsed.invalid.length,
         duplicateRows: duplicatesTotal,
         queued,
-        errors:       parsed.invalid.flatMap((r) => r.errors),
+        errors:        parsed.invalid.flatMap((r) => r.errors),
       },
     });
 
