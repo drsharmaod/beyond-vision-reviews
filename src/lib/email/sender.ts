@@ -100,7 +100,6 @@ export async function sendFeedbackRequestEmail(params: {
     location_name: params.locationName,
     exam_date:     params.examDate,
     patient_email: params.patientEmail,
-    doctor_name:   params.doctorName ?? "The Beyond Vision Team",
     ...params.ratingUrls,
   };
 
