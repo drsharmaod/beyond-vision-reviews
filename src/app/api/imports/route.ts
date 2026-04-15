@@ -171,6 +171,7 @@ export async function POST(req: NextRequest) {
             examDate:     format(row.examDate, "MMMM d, yyyy"),
             patientEmail: patient.email,
             ratingUrls,
+            doctorName:   (row as any).doctorName,
             senderEmail,
             senderName,
           });

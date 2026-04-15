@@ -16,7 +16,6 @@ export function interpolateTemplate(
 ): string {
   let result = template;
 
-  // Handle {{#if variable}} ... {{/if}} blocks
   result = result.replace(
     /\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
     (_, varName, content) => {
@@ -25,7 +24,6 @@ export function interpolateTemplate(
     }
   );
 
-  // Replace {{variable}} with values
   result = result.replace(/\{\{(\w+)\}\}/g, (_, key) => {
     const val = variables[key];
     return val !== undefined && val !== null ? String(val) : "";
@@ -86,6 +84,7 @@ export async function sendFeedbackRequestEmail(params: {
   examDate:     string;
   patientEmail: string;
   ratingUrls:   Record<string, string>;
+  doctorName?:  string;
   senderEmail?: string;
   senderName?:  string;
 }): Promise<SendEmailResult> {
@@ -97,10 +96,11 @@ export async function sendFeedbackRequestEmail(params: {
   }
 
   const vars = {
-    first_name:     params.firstName,
-    location_name:  params.locationName,
-    exam_date:      params.examDate,
-    patient_email:  params.patientEmail,
+    first_name:    params.firstName,
+    location_name: params.locationName,
+    exam_date:     params.examDate,
+    patient_email: params.patientEmail,
+    doctor_name:   params.doctorName ?? "The Beyond Vision Team",
     ...params.ratingUrls,
   };
 
@@ -133,11 +133,11 @@ export async function sendPositiveFollowupEmail(params: {
   }
 
   const vars = {
-    first_name:     params.firstName,
-    location_name:  params.locationName,
-    rating:         params.rating,
-    review_link:    params.reviewLink,
-    comment:        params.comment ?? "",
+    first_name:    params.firstName,
+    location_name: params.locationName,
+    rating:        params.rating,
+    review_link:   params.reviewLink,
+    comment:       params.comment ?? "",
   };
 
   return sendEmail({
@@ -171,31 +171,24 @@ export async function sendNegativeAlertEmail(params: {
   }
 
   const vars = {
-    first_name:     params.firstName,
-    last_name:      params.lastName,
-    patient_email:  params.patientEmail,
-    location_name:  params.locationName,
-    exam_date:      params.examDate,
-    rating:         params.rating,
-    comment:        params.comment ?? "",
-    timestamp:      params.timestamp,
-    dashboard_url:  params.dashboardUrl,
+    first_name:    params.firstName,
+    last_name:     params.lastName,
+    patient_email: params.patientEmail,
+    location_name: params.locationName,
+    exam_date:     params.examDate,
+    rating:        params.rating,
+    comment:       params.comment ?? "",
+    timestamp:     params.timestamp,
+    dashboard_url: params.dashboardUrl,
   };
 
-  const subj    = interpolateTemplate(template.subject, vars);
-  const html    = interpolateTemplate(template.htmlBody, vars);
-  const text    = interpolateTemplate(template.textBody, vars);
+  const subj = interpolateTemplate(template.subject, vars);
+  const html = interpolateTemplate(template.htmlBody, vars);
+  const text = interpolateTemplate(template.textBody, vars);
 
-  // Send to all alert recipients
   const results = await Promise.allSettled(
     params.to.map((recipient) =>
-      sendEmail({
-        to:       recipient,
-        subject:  subj,
-        html,
-        text,
-        tags:     [{ name: "type", value: "negative_alert" }],
-      })
+      sendEmail({ to: recipient, subject: subj, html, text, tags: [{ name: "type", value: "negative_alert" }] })
     )
   );
 
