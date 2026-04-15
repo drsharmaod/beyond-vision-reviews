@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { parseAndValidateCSV, checkSuppressionWindow } from "@/lib/csv/validator";
-import { sendFeedbackRequestEmail } from "@/lib/email/sender";
+import { sendEmail, interpolateTemplate } from "@/lib/email/sender";
 import { signFeedbackToken, buildRatingUrls } from "@/lib/tokens";
 import { addDays, format } from "date-fns";
 
@@ -158,24 +158,43 @@ export async function POST(req: NextRequest) {
           });
 
           // Step 4: Build rating URLs with the real token — must use /api/r/ path
-          const ratingUrls: Record<string, string> = {};
+const ratingUrls: Record<string, string> = {};
           for (let star = 1; star <= 5; star++) {
             ratingUrls[`rating_${star}_url`] = `${appUrl}/api/r/${token}/${star}`;
           }
-          ratingUrls["doctor_name"] = (row as any).doctorName ?? "The Beyond Vision Team";
 
-          // Step 5: Send email via Resend
-          const result = await sendFeedbackRequestEmail({
-            to:           patient.email,
-            firstName:    patient.firstName,
-            locationName: location.name,
-            examDate:     format(row.examDate, "MMMM d, yyyy"),
-            patientEmail: patient.email,
-            ratingUrls,
-            doctorName:   (row as any).doctorName,
-            senderEmail,
-            senderName,
+          // Step 5: Send email via Resend — build vars inline for full control
+          const template = await prisma.emailTemplate.findFirst({
+            where: { templateType: "FEEDBACK_REQUEST", isActive: true },
           });
+
+          let result = { success: false, messageId: undefined as string | undefined, error: "No template" };
+
+          if (template) {
+            const doctorName = (row as any).doctorName ?? "The Beyond Vision Team";
+            const vars: Record<string, string> = {
+              first_name:    patient.firstName,
+              location_name: location.name,
+              exam_date:     format(row.examDate, "MMMM d, yyyy"),
+              patient_email: patient.email,
+              doctor_name:   doctorName,
+              ...ratingUrls,
+            };
+
+            const subject = interpolateTemplate(template.subject, vars);
+            const html    = interpolateTemplate(template.htmlBody, vars);
+            const text    = interpolateTemplate(template.textBody, vars);
+
+            result = await sendEmail({
+              to:       patient.email,
+              from:     senderEmail,
+              fromName: senderName,
+              subject,
+              html,
+              text,
+              tags: [{ name: "type", value: "feedback_request" }],
+            });
+          }
 
           // Step 6: Update send status
           await prisma.feedbackRequest.update({
