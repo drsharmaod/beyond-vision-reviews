@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyFeedbackToken } from "@/lib/tokens";
 import prisma from "@/lib/prisma";
-import { enqueueProcessRating } from "@/lib/queue";
+import { sendPositiveFollowupEmail, sendNegativeAlertEmail } from "@/lib/email/sender";
+import { format } from "date-fns";
 
 const respondSchema = z.object({
   token:   z.string().min(1),
@@ -39,7 +40,15 @@ export async function POST(req: NextRequest) {
 
   const feedbackRequest = await prisma.feedbackRequest.findUnique({
     where: { id: payload.feedbackRequestId },
-    include: { feedbackResponse: true },
+    include: {
+      feedbackResponse: true,
+      examVisit: {
+        include: {
+          patient:  true,
+          location: true,
+        },
+      },
+    },
   });
 
   if (!feedbackRequest) {
@@ -47,9 +56,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (feedbackRequest.feedbackResponse) {
-    // Already submitted — idempotent: return existing
     return NextResponse.json({
-      success:    true,
+      success: true,
       data: {
         responseId: feedbackRequest.feedbackResponse.id,
         rating:     feedbackRequest.feedbackResponse.rating,
@@ -60,7 +68,6 @@ export async function POST(req: NextRequest) {
 
   const ip        = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? null;
   const userAgent = req.headers.get("user-agent") ?? null;
-
   const sentiment = rating >= 4 ? "POSITIVE" : rating === 3 ? "NEUTRAL" : "NEGATIVE";
 
   const response = await prisma.feedbackResponse.create({
@@ -75,9 +82,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Enqueue follow-up processing (positive review prompt or negative alert)
-  await enqueueProcessRating(response.id);
-
   await prisma.auditLog.create({
     data: {
       eventType:  "RATING_SUBMITTED",
@@ -87,6 +91,99 @@ export async function POST(req: NextRequest) {
       ipAddress:  ip,
     },
   });
+
+  // Process rating inline — no Redis queue needed
+  try {
+    const visit    = feedbackRequest.examVisit;
+    const patient  = visit.patient;
+    const location = visit.location;
+    const settings = await prisma.systemSettings.findFirst();
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://beyond-vision-reviews.vercel.app";
+
+    if (rating >= 4) {
+      // ── POSITIVE: send Google review follow-up email ────────────────────
+      await sendPositiveFollowupEmail({
+        to:           patient.email,
+        firstName:    patient.firstName,
+        locationName: location.name,
+        rating,
+        reviewLink:   location.reviewLink,
+        comment:      comment ?? undefined,
+        senderEmail:  settings?.defaultSenderEmail,
+        senderName:   settings?.defaultSenderName,
+      });
+
+      await prisma.feedbackResponse.update({
+        where: { id: response.id },
+        data:  { reviewPromptShown: true },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          eventType:  "REVIEW_PROMPT_SENT",
+          entityType: "FeedbackResponse",
+          entityId:   response.id,
+          metadata:   { rating },
+        },
+      });
+
+    } else {
+      // ── NEGATIVE: create alert and send internal email ──────────────────
+      const alertRecipients = [
+        location.managerEmail,
+        ...(location.alertEmails ?? []),
+      ].filter(Boolean) as string[];
+
+      const uniqueRecipients = [...new Set(alertRecipients)];
+
+      const alert = await prisma.internalAlert.create({
+        data: {
+          feedbackResponseId: response.id,
+          locationId:    location.id,
+          alertEmailTo:  uniqueRecipients,
+          sendStatus:    "PENDING",
+        },
+      });
+
+      const emailResult = await sendNegativeAlertEmail({
+        to:           uniqueRecipients,
+        firstName:    patient.firstName,
+        lastName:     patient.lastName,
+        patientEmail: patient.email,
+        locationName: location.name,
+        examDate:     format(visit.examDate, "MMMM d, yyyy"),
+        rating,
+        comment:      comment ?? undefined,
+        timestamp:    format(new Date(), "PPpp"),
+        dashboardUrl: `${appUrl}/alerts`,
+      });
+
+      await prisma.internalAlert.update({
+        where: { id: alert.id },
+        data: {
+          sendStatus: emailResult.success ? "SENT" : "FAILED",
+          sentAt:     emailResult.success ? new Date() : undefined,
+        },
+      });
+
+      await prisma.feedbackResponse.update({
+        where: { id: response.id },
+        data:  { internalAlertSent: emailResult.success },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          eventType:  "INTERNAL_ALERT_SENT",
+          entityType: "InternalAlert",
+          entityId:   alert.id,
+          metadata:   { rating, recipients: uniqueRecipients, success: emailResult.success },
+        },
+      });
+    }
+  } catch (processingErr: any) {
+    console.error("Post-rating processing error:", processingErr.message);
+    // Don't fail the response — patient already submitted successfully
+  }
 
   return NextResponse.json({
     success: true,
