@@ -168,7 +168,7 @@ const ratingUrls: Record<string, string> = {};
             where: { templateType: "FEEDBACK_REQUEST", isActive: true },
           });
 
-          let result = { success: false, messageId: undefined as string | undefined, error: "No template" };
+          let result: { success: boolean; messageId?: string; error?: string } = { success: false, error: "No template" };
 
           if (template) {
             const doctorName = (row as any).doctorName ?? "The Beyond Vision Team";
