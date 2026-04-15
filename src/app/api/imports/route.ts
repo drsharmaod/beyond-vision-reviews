@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const scheduledAt  = immediate ? new Date() : addDays(row.examDate, sendDelayDays);
+      const scheduledAt  = immediate ? new Date() : addDays(row.examDate, 1);
       const shouldSendNow = immediate || scheduledAt <= new Date();
 
       // Create exam visit
