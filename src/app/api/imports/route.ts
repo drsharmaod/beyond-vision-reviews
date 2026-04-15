@@ -157,8 +157,11 @@ export async function POST(req: NextRequest) {
             data:  { token },
           });
 
-          // Step 4: Build rating URLs with the real token
-          const ratingUrls = buildRatingUrls(token, appUrl);
+          // Step 4: Build rating URLs with the real token — must use /api/r/ path
+          const ratingUrls: Record<string, string> = {};
+          for (let star = 1; star <= 5; star++) {
+            ratingUrls[`rating_${star}_url`] = `${appUrl}/api/r/${token}/${star}`;
+          }
 
           // Step 5: Send email via Resend
           const result = await sendFeedbackRequestEmail({
