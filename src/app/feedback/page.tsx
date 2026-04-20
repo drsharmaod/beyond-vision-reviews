@@ -90,15 +90,13 @@ function FeedbackForm() {
       }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ width: 40, height: 1, marginBottom: 12, background: "linear-gradient(90deg, transparent, #C9A84C, transparent)" }} />
-            <span style={{ fontFamily: ffDisplay, fontSize: 22, fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em", textTransform: "uppercase" as const }}>
-              BEYOND VISION
-            </span>
-            <span style={{ fontSize: 10, color: "#C9A84C", letterSpacing: "0.5em", textTransform: "uppercase" as const, marginTop: 4 }}>
-              OPTOMETRY
-            </span>
-            <div style={{ width: 40, height: 1, marginTop: 12, background: "linear-gradient(90deg, transparent, #C9A84C, transparent)" }} />
+          <img
+            src="https://beyondvision.ca/wp-content/uploads/2017/08/logo-white.png"
+            alt="Beyond Vision"
+            style={{ width: "160px", maxWidth: "100%", display: "block", margin: "0 auto 8px" }}
+          />
+          <div style={{ fontSize: 9, color: "#C9A84C", letterSpacing: "0.5em", textTransform: "uppercase" as const }}>
+            OPTOMETRY
           </div>
         </div>
 
