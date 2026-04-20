@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart, Area, XAxis, YAxis,
@@ -94,6 +94,13 @@ function StarBar({ star, count, pct }: { star: number; count: number; pct: numbe
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [days, setDays] = useState(30);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const summaryQ = useQuery({
     queryKey: ["dashboard-summary", days],
@@ -113,10 +120,10 @@ export default function DashboardPage() {
   const isLoading = summaryQ.isLoading;
 
   return (
-    <div style={{ maxWidth: 1200, fontFamily: ff }}>
+    <div style={{ maxWidth: 1200, fontFamily: ff, width: "100%" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" as const : "row" as const, alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", marginBottom: 24, gap: isMobile ? 12 : 0 }}>
         <div>
           <h1 style={{ fontFamily: ffD, fontSize: 26, fontWeight: 600, color: "#ffffff", margin: "0 0 4px" }}>Dashboard</h1>
           <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
@@ -147,7 +154,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         <KpiCard label="Feedback Sent" value={isLoading ? "—" : s?.totalFeedbackSent ?? 0}
           sub={`${days}-day window`} icon={Mail} color="blue" />
         <KpiCard label="Response Rate" value={isLoading ? "—" : `${s?.responseRate ?? 0}%`}
@@ -186,7 +193,7 @@ export default function DashboardPage() {
       )}
 
       {/* Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr", gap: 20, marginBottom: 24 }}>
         {/* Trend */}
         <div style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12, padding: 20 }}>
           <h3 style={{ fontSize: 13, fontWeight: 500, color: "#ffffff", margin: "0 0 16px" }}>Feedback Trend</h3>
@@ -297,7 +304,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+        .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+        .charts-grid { grid-template-columns: 1fr !important; }
+        .dash-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+        .dash-time-btns { width: 100%; justify-content: flex-start !important; }
+        @media (min-width: 768px) {
+          .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+          .charts-grid { grid-template-columns: 2fr 1fr !important; }
+          .dash-header { flex-direction: row !important; align-items: center !important; }
+        }
+      `}</style>
     </div>
   );
 }
