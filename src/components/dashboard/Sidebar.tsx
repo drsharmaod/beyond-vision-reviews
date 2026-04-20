@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation";
 import { Session } from "next-auth";
 import {
   LayoutDashboard, Upload, MapPin, Bell, Mail, Settings,
-  LogOut, ChevronRight, FileText,
+  LogOut, ChevronRight, FileText, Users,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const NAV = [
   { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN","LOCATION_MANAGER","STAFF"] },
   { href: "/imports",    label: "CSV Import", icon: Upload,          roles: ["ADMIN","LOCATION_MANAGER"] },
+  { href: "/users",      label: "Users",      icon: Users,           roles: ["ADMIN"] },
   { href: "/alerts",     label: "Alerts",     icon: Bell,            roles: ["ADMIN","LOCATION_MANAGER"] },
   { href: "/locations",  label: "Locations",  icon: MapPin,          roles: ["ADMIN"] },
   { href: "/templates",  label: "Templates",  icon: Mail,            roles: ["ADMIN"] },
