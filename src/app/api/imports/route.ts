@@ -172,14 +172,33 @@ const ratingUrls: Record<string, string> = {};
 
           if (template) {
             const doctorName = (row as any).doctorName ?? "The Beyond Vision Team";
-            const vars: Record<string, string> = {
-              first_name:    patient.firstName,
-              location_name: location.name,
-              exam_date:     format(row.examDate, "MMMM d, yyyy"),
-              patient_email: patient.email,
-              doctor_name:   doctorName,
-              ...ratingUrls,
-            };
+            const DOCTOR_PHOTOS: Record<string, string> = {
+  "dr. suraj sharma":   "https://beyondvision.ca/wp-content/uploads/2018/06/sonu-sharma.jpg",
+  "dr. s. sharma":      "https://beyondvision.ca/wp-content/uploads/2018/06/sonu-sharma.jpg",
+  "dr. tom-harley poon":"https://beyondvision.ca/wp-content/uploads/2018/06/TH-Poon.jpg",
+  "dr. th poon":        "https://beyondvision.ca/wp-content/uploads/2018/06/TH-Poon.jpg",
+  "dr. colin bain":     "https://beyondvision.ca/wp-content/uploads/2018/06/colin-bain.jpg",
+  "dr. maggie la":      "https://beyondvision.ca/wp-content/uploads/2019/07/maggie-la.jpg",
+  "dr. mona ubhi":      "https://beyondvision.ca/wp-content/uploads/2022/05/Dr.-Mona-Ubhi.jpg",
+  "dr. victoria baba":  "https://beyondvision.ca/wp-content/uploads/2022/03/Dr-Victoria-Baba.jpg",
+  "dr. navneet hans":   "https://beyondvision.ca/wp-content/uploads/2023/03/navneet-hans.jpg",
+  "dr. randy poon":     "https://beyondvision.ca/wp-content/uploads/2025/06/Randy_Poon.jpg",
+  "dr. rohan kohli":    "https://beyondvision.ca/wp-content/uploads/2023/09/rohan_kohli.jpg",
+  "dr. julia vo":       "https://beyondvision.ca/wp-content/uploads/2025/05/dr_vo.jpg",
+  "dr. johnny lu":      "https://beyondvision.ca/wp-content/uploads/2026/03/dr_lu.jpg",
+};
+
+const doctorPhoto = DOCTOR_PHOTOS[doctorName.toLowerCase()] ?? "";
+
+const vars: Record<string, string> = {
+  first_name:    patient.firstName,
+  location_name: location.name,
+  exam_date:     format(row.examDate, "MMMM d, yyyy"),
+  patient_email: patient.email,
+  doctor_name:   doctorName,
+  doctor_photo:  doctorPhoto,
+  ...ratingUrls,
+};
 
             const subject = interpolateTemplate(template.subject, vars);
             const html    = interpolateTemplate(template.htmlBody, vars);
