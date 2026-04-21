@@ -72,7 +72,17 @@ export async function POST(req: NextRequest) {
     const locations  = await prisma.location.findMany({ where: { isActive: true } });
     const locationMap = new Map(locations.map((l) => [l.code, l]));
     const validCodes  = locations.map((l) => l.code);
+
+    // Detect Visual Eyes format by checking for FIRSTNAME column
+    const firstLine = csvContent.split("\n")[0].toLowerCase();
+    const isVisualEyes = firstLine.includes("firstname") || firstLine.includes("first name");
+    console.log(`CSV format detection: isVisualEyes=${isVisualEyes}, firstLine=${firstLine.substring(0, 50)}`);
+
     const parsed      = await parseAndValidateCSV(csvContent, validCodes, file.name);
+    console.log(`Parsed: total=${parsed.totalRows} valid=${parsed.valid.length} invalid=${parsed.invalid.length} format=${parsed.detectedFormat}`);
+    if (parsed.invalid.length > 0) {
+      console.log(`First invalid row errors:`, JSON.stringify(parsed.invalid[0]?.errors));
+    }
 
     const settings        = await prisma.systemSettings.findFirst();
     const suppressionDays = settings?.duplicateSuppressionDays ?? 90;
