@@ -200,6 +200,9 @@ export async function parseAndValidateCSV(
     const row    = result.data[i];
     const rowNum = i + 2;
     const errors: ValidationError[] = [];
+    // Skip completely empty rows (Visual Eyes exports trailing empty rows)
+    const rowValues = Object.values(row).map(v => (v ?? "").trim());
+    if (rowValues.every(v => v === "")) continue;
 
     let firstName: string;
     let lastName:  string;
