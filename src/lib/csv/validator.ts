@@ -88,16 +88,20 @@ export interface VisualEyesFileMeta {
 
 export function parseVisualEyesFilename(filename: string): VisualEyesFileMeta | null {
   try {
-    // Remove extension
+   // Remove extension
     const base = filename.replace(/\.[^.]+$/, "");
 
+    // Normalize separators — replace dots and spaces with underscores
+    // Handles both: BainMillwoods_Tuesday_Apr_07_of_2026
+    //           and: BainMillwoods.Tuesday_Apr 08 of 2026
+    const normalized = base.replace(/[\s.]+/g, "_").replace(/_+/g, "_");
+
     // Split on first underscore to get "DoctorLocation" and rest
-    const firstUnderscore = base.indexOf("_");
+    const firstUnderscore = normalized.indexOf("_");
     if (firstUnderscore === -1) return null;
 
-    const doctorLocation = base.substring(0, firstUnderscore); // e.g. "BainMillwoods"
-    const dateSection    = base.substring(firstUnderscore + 1); // e.g. "Tuesday_Apr_07_of_2026"
-
+    const doctorLocation = normalized.substring(0, firstUnderscore);
+    const dateSection    = normalized.substring(firstUnderscore + 1);
     // Extract location — match against known location names
     let doctorLastName = doctorLocation;
     let locationCode   = "";
