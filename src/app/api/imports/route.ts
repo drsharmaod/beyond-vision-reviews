@@ -255,18 +255,20 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      success: true,
-      data: {
-        importId:      importRecord.id,
-        fileName:      file.name,
-        totalRows:     parsed.totalRows,
-        validRows:     created,
-        invalidRows:   parsed.invalid.length,
-        duplicateRows: duplicatesTotal,
-        queued,
-        errors:        parsed.invalid.flatMap((r) => r.errors),
-      },
-    });
+  success: true,
+  data: {
+    importId:      importRecord.id,
+    fileName:      file.name,
+    totalRows:     parsed.totalRows,
+    validRows:     created,
+    invalidRows:   parsed.invalid.length,
+    duplicateRows: duplicatesTotal,
+    queued,
+    detectedFormat: parsed.detectedFormat,
+    errors:        parsed.invalid.flatMap((r) => r.errors),
+    debugInvalid:  parsed.invalid.slice(0, 3).map(r => ({ row: r.row, errors: r.errors })),
+  },
+});
 
   } catch (err: any) {
     if (importRecord) {
