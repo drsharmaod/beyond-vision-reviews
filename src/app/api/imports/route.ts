@@ -198,20 +198,17 @@ export async function POST(req: NextRequest) {
 
           let result: { success: boolean; messageId?: string; error?: string } = { success: false, error: "No template" };
 
-          if (template) { 
-
-const doctorPhoto = DOCTOR_PHOTOS[doctorName.toLowerCase()] ?? "";
-
-const vars: Record<string, string> = {
-  first_name:    patient.firstName,
-  location_name: location.name,
-  exam_date:     format(row.examDate, "MMMM d, yyyy"),
-  patient_email: patient.email,
-  doctor_name:   doctorName,
-  doctor_photo:  doctorPhoto,
-  ...ratingUrls,
-};
-
+          if (template) {
+            const doctorPhoto = DOCTOR_PHOTOS[doctorName.toLowerCase()] ?? "";
+            const vars: Record<string, string> = {
+              first_name:    patient.firstName,
+              location_name: location.name,
+              exam_date:     format(row.examDate, "MMMM d, yyyy"),
+              patient_email: patient.email,
+              doctor_name:   doctorName,
+              doctor_photo:  doctorPhoto,
+              ...ratingUrls,
+            };
             const subject = interpolateTemplate(template.subject, vars);
             const html    = interpolateTemplate(template.htmlBody, vars);
             const text    = interpolateTemplate(template.textBody, vars);
