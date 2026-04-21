@@ -8,11 +8,12 @@ import { sendEmail, interpolateTemplate } from "@/lib/email/sender";
 import { signFeedbackToken, buildRatingUrls } from "@/lib/tokens";
 import { addDays, format } from "date-fns";
 
+// ── Doctor photo lookup ───────────────────────────────────────────────────────
 const DOCTOR_PHOTOS: Record<string, string> = {
   "dr. suraj sharma":    "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/sonu-sharma.jpg",
   "dr. s. sharma":       "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/sonu-sharma.jpg",
   "dr. tom-harley poon": "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/TH-Poon.jpg",
-  "dr. th poon":         "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/TH-Poon.jpg",
+  "dr. th poon":         "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/TH-Poon.jpg",
   "dr. colin bain":      "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2018/06/colin-bain.jpg",
   "dr. maggie la":       "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2019/07/maggie-la.jpg",
   "dr. mona ubhi":       "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2022/05/Dr.-Mona-Ubhi.jpg",
@@ -24,7 +25,6 @@ const DOCTOR_PHOTOS: Record<string, string> = {
   "dr. johnny lu":       "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2026/03/dr_lu.jpg",
 };
 
-// GET /api/imports — list all imports
 // GET /api/imports — list all imports
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -189,16 +189,16 @@ export async function POST(req: NextRequest) {
           for (let star = 1; star <= 5; star++) {
             ratingUrls[`rating_${star}_url`] = `${appUrl}/api/r/${token}/${star}`;
           }
-          ratingUrls["doctor_name"] = (row as any).doctorName ?? "The Beyond Vision Team";
 
           // Step 5: Send email via Resend — build vars inline for full control
           const template = await prisma.emailTemplate.findFirst({
             where: { templateType: "FEEDBACK_REQUEST", isActive: true },
           });
 
-          let result: { success: boolean; messageId?: string; error?: string } = { success: false, error: "No template" };
+          let result = { success: false, messageId: undefined as string | undefined, error: "No template" };
 
           if (template) {
+            const doctorName  = (row as any).doctorName ?? "The Beyond Vision Team";
             const doctorPhoto = DOCTOR_PHOTOS[doctorName.toLowerCase()] ?? "";
             const vars: Record<string, string> = {
               first_name:    patient.firstName,
@@ -209,6 +209,7 @@ export async function POST(req: NextRequest) {
               doctor_photo:  doctorPhoto,
               ...ratingUrls,
             };
+
             const subject = interpolateTemplate(template.subject, vars);
             const html    = interpolateTemplate(template.htmlBody, vars);
             const text    = interpolateTemplate(template.textBody, vars);
@@ -273,20 +274,18 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-  success: true,
-  data: {
-    importId:      importRecord.id,
-    fileName:      file.name,
-    totalRows:     parsed.totalRows,
-    validRows:     created,
-    invalidRows:   parsed.invalid.length,
-    duplicateRows: duplicatesTotal,
-    queued,
-    detectedFormat: parsed.detectedFormat,
-    errors:        parsed.invalid.flatMap((r) => r.errors),
-    debugInvalid:  parsed.invalid.slice(0, 3).map(r => ({ row: r.row, errors: r.errors })),
-  },
-});
+      success: true,
+      data: {
+        importId:      importRecord.id,
+        fileName:      file.name,
+        totalRows:     parsed.totalRows,
+        validRows:     created,
+        invalidRows:   parsed.invalid.length,
+        duplicateRows: duplicatesTotal,
+        queued,
+        errors:        parsed.invalid.flatMap((r) => r.errors),
+      },
+    });
 
   } catch (err: any) {
     if (importRecord) {
