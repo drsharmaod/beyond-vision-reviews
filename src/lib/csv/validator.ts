@@ -286,7 +286,11 @@ export async function parseAndValidateCSV(
         errors.push({ row: rowNum, field: "exam_date", message: `Cannot parse date: "${examDateRaw}"` });
       }
     }
-
+if (errors.length > 0) {
+  console.error(`Row ${rowNum} errors:`, JSON.stringify(errors));
+  invalid.push({ row: rowNum, data: row as any, errors });
+  continue;
+}
     if (errors.length > 0) {
       invalid.push({ row: rowNum, data: row as any, errors });
       continue;
