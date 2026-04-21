@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
 
           let result: { success: boolean; messageId?: string; error?: string } = { success: false, error: "No template" };
 
-          if (template) 
+          if (template) { 
 
 const doctorPhoto = DOCTOR_PHOTOS[doctorName.toLowerCase()] ?? "";
 
