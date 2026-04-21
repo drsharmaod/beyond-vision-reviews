@@ -204,6 +204,14 @@ export async function parseAndValidateCSV(
     const rowValues = Object.values(row).map(v => (v ?? "").trim());
     if (rowValues.every(v => v === "")) continue;
 
+    // Skip rows with no email AND no name (fully empty Visual Eyes rows)
+    const hasEmail = !!(row["email"] ?? "").trim();
+    const hasName  = !!(row["firstname"] ?? row["first_name"] ?? "").trim();
+    if (!hasEmail && !hasName) continue;
+
+    // Debug — remove after testing
+    console.log(`Row ${rowNum} email: "${row["email"]}" firstname: "${row["firstname"]}" format: ${format}`);
+
     let firstName: string;
     let lastName:  string;
     let email:     string;
