@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     if (file.size > maxSizeMB * 1024 * 1024) {
       return NextResponse.json({ success: false, error: `File exceeds ${maxSizeMB}MB limit` }, { status: 400 });
     }
-    if (!file.name.endsWith(".csv")) {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
       return NextResponse.json({ success: false, error: "Only CSV files are accepted" }, { status: 400 });
     }
 
