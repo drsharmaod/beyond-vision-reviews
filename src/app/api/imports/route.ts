@@ -23,6 +23,7 @@ const DOCTOR_PHOTOS: Record<string, string> = {
   "dr. rohan kohli":     "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2023/09/rohan_kohli.jpg",
   "dr. julia vo":        "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2025/05/dr_vo.jpg",
   "dr. johnny lu":       "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2026/03/dr_lu.jpg",
+  "dr. lu":            "https://beyond-vision-reviews.vercel.app/api/doctor-photo?url=https://beyondvision.ca/wp-content/uploads/2026/03/dr_lu.jpg",
 };
 
 // GET /api/imports — list all imports
