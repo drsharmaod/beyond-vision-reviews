@@ -11,28 +11,52 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 }
 
+interface FileStatus {
+  name: string;
+  status: "pending" | "uploading" | "done" | "error";
+  result?: any;
+  error?: string;
+}
+
 function UploadZone({ onResult }: { onResult: (r: any) => void }) {
-  const [uploading, setUploading] = useState(false);
-  const [error,     setError]     = useState("");
+  const [uploading,   setUploading]   = useState(false);
+  const [fileStatuses, setFileStatuses] = useState<FileStatus[]>([]);
+  const [error,       setError]       = useState("");
 
   const onDrop = useCallback(async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
+    if (!files.length) return;
     setUploading(true); setError("");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res  = await fetch("/api/imports", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      onResult(json.data);
-    } catch (e: any) {
-      setError(e.message ?? "Upload failed");
-    } finally { setUploading(false); }
+
+    // Initialize all files as pending
+    const statuses: FileStatus[] = files.map(f => ({ name: f.name, status: "pending" }));
+    setFileStatuses(statuses);
+
+    // Process each file sequentially
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      // Mark as uploading
+      setFileStatuses(prev => prev.map((s, idx) => idx === i ? { ...s, status: "uploading" } : s));
+
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res  = await fetch("/api/imports", { method: "POST", body: fd });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+
+        setFileStatuses(prev => prev.map((s, idx) => idx === i ? { ...s, status: "done", result: json.data } : s));
+        onResult(json.data);
+      } catch (e: any) {
+        setFileStatuses(prev => prev.map((s, idx) => idx === i ? { ...s, status: "error", error: e.message ?? "Upload failed" } : s));
+      }
+    }
+
+    setUploading(false);
   }, [onResult]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop, accept: { "text/csv": [".csv"] }, maxFiles: 1, disabled: uploading,
+    onDrop, accept: { "text/csv": [".csv", ".CSV"] }, maxFiles: 20, disabled: uploading,
   });
 
   return (
@@ -59,15 +83,46 @@ function UploadZone({ onResult }: { onResult: (r: any) => void }) {
           }
         </div>
         <p style={{ color: "#ffffff", fontWeight: 500, fontSize: 15, margin: "0 0 6px" }}>
-          {uploading ? "Processing CSV…" : isDragActive ? "Drop it here" : "Drop your CSV file here"}
+          {uploading ? "Processing files…" : isDragActive ? "Drop them here" : "Drop your CSV files here"}
         </p>
         <p style={{ color: "#888", fontSize: 13, margin: "0 0 16px" }}>
           or <span style={{ color: "#C9A84C", textDecoration: "underline" }}>browse to upload</span>
         </p>
         <p style={{ color: "#444", fontSize: 11, margin: 0 }}>
-          CSV only · Max 10MB · Required columns: first_name, last_name, email, location, exam_date
+          CSV only · Max 10MB per file · Upload multiple files at once
         </p>
       </div>
+
+      {/* Per-file status list */}
+      {fileStatuses.length > 0 && (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {fileStatuses.map((fs, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 14px", borderRadius: 8,
+              backgroundColor: fs.status === "done" ? "rgba(34,197,94,0.06)"
+                : fs.status === "error" ? "rgba(239,68,68,0.06)"
+                : "rgba(255,255,255,0.03)",
+              border: `1px solid ${fs.status === "done" ? "rgba(34,197,94,0.2)"
+                : fs.status === "error" ? "rgba(239,68,68,0.2)"
+                : "#2a2a2a"}`,
+            }}>
+              {fs.status === "uploading" && <RefreshCw size={13} color="#C9A84C" style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />}
+              {fs.status === "done"      && <CheckCircle2 size={13} color="#4ade80" style={{ flexShrink: 0 }} />}
+              {fs.status === "error"     && <XCircle size={13} color="#f87171" style={{ flexShrink: 0 }} />}
+              {fs.status === "pending"   && <div style={{ width: 13, height: 13, borderRadius: "50%", border: "1px solid #444", flexShrink: 0 }} />}
+              <span style={{ fontSize: 12, color: "#ffffff", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{fs.name}</span>
+              {fs.status === "done" && fs.result && (
+                <span style={{ fontSize: 11, color: "#4ade80", flexShrink: 0 }}>{fs.result.validRows} imported</span>
+              )}
+              {fs.status === "error" && (
+                <span style={{ fontSize: 11, color: "#f87171", flexShrink: 0 }}>{fs.error}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div style={{
           marginTop: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 8,
