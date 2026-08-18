@@ -210,9 +210,9 @@ model FeedbackRequest {
   providerMessageId String?
   openedAt          DateTime?
   clickedAt         DateTime?
+  reminderSentAt    DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  reminderSentAt    DateTime?
 
   examVisit        ExamVisit        @relation(fields: [examVisitId], references: [id])
   location         Location         @relation(fields: [locationId], references: [id])
