@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     // Find feedback requests sent 3 days ago with no response and no reminder sent yet
     const pendingReminders = await prisma.feedbackRequest.findMany({
       where: {
-        sentAt: {
+        createdAt: {
           gte: fourDaysAgo,
           lte: threeDaysAgo,
         },
