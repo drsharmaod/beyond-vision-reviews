@@ -313,6 +313,7 @@ enum TemplateType {
   FEEDBACK_REQUEST
   POSITIVE_FOLLOWUP
   NEGATIVE_ALERT
+  REMINDER
 }
 
 model EmailTemplate {
